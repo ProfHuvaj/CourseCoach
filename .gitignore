@@ -1,0 +1,21 @@
+# OS / editor noise
+Thumbs.db
+Desktop.ini
+.DS_Store
+.vscode/
+.idea/
+
+# Secrets and private data: never commit these
+.env
+.env.*
+*.key
+*.pem
+private/
+data-private/
+*.xlsx
+*.csv
+
+# Scratch work and Claude Code local settings
+drafts/
+scratch/
+.claude/settings.local.json

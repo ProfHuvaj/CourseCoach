@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import './index.css';
+import { HelpModal } from './helpContent.jsx';
 
     const initialCourseData = {
       year1: {
@@ -856,9 +857,40 @@ import './index.css';
       );
     };
 
-    // Student timeline (the start term will later drive which curriculum version applies)
-    const START_TERM = "Fall 2026";
-    const EXPECTED_GRAD_TERM = "Spring 2030";
+    // Student details shown in the header (editable by the student; nothing is saved or sent anywhere).
+    // The start term will later drive which curriculum version applies.
+    const DEFAULT_NAME = "[Your Name]";
+    const NAME_MAX = 30;
+    const DEFAULT_START_TERM = "Fall 2026";
+    const FIRST_START_YEAR = 2022; // earliest year offered in the "Started" list
+    const LAST_START_YEAR = 2028;  // latest year offered in the "Started" list
+    const SEMESTERS_TO_GRADUATE = 7; // Fall/Spring semesters after the starting one (Fall 2026 -> Spring 2030)
+
+    // Starting terms are Fall or Spring only. Position in the Spring/Fall sequence: Spring = even, Fall = odd.
+    const termToSlot = (t) => { const [s, y] = t.split(" "); return Number(y) * 2 + (s === "Fall" ? 1 : 0); };
+    const slotToTerm = (n) => `${n % 2 ? "Fall" : "Spring"} ${Math.floor(n / 2)}`;
+    const defaultGradTerm = (start) => slotToTerm(termToSlot(start) + SEMESTERS_TO_GRADUATE);
+
+    const START_TERMS = [];
+    for (let y = FIRST_START_YEAR; y <= LAST_START_YEAR; y++) START_TERMS.push(`Spring ${y}`, `Fall ${y}`);
+
+    // Graduation can also be in the Summer, so this list has Spring, Summer and Fall.
+    const gradTermOptions = (start) => {
+      const order = { Spring: 0, Summer: 1, Fall: 2 };
+      const key = (t) => { const [s, y] = t.split(" "); return Number(y) * 3 + order[s]; };
+      const startYear = Number(start.split(" ")[1]);
+      const out = [];
+      for (let y = startYear; y <= startYear + 8; y++) for (const s of ["Spring", "Summer", "Fall"]) out.push(`${s} ${y}`);
+      return out.filter(t => key(t) >= key(start));
+    };
+
+    // Initials for the round badge: "[Your Name]" -> "YN", "Jane Smith" -> "JS"
+    const initialsOf = (name) => {
+      const words = name.replace(/[\[\]]/g, "").trim().split(/\s+/).filter(Boolean);
+      if (words.length === 0) return "?";
+      const first = words[0][0], last = words.length > 1 ? words[words.length - 1][0] : "";
+      return (first + last).toUpperCase();
+    };
 
     function App() {
       const entIdx = majors.findIndex(m => m.code === "ENT");
@@ -906,6 +938,12 @@ import './index.css';
       const [dragSource, setDragSource] = useState(null);
       const [dropTarget, setDropTarget] = useState(null);
       const [showCreditWarning, setShowCreditWarning] = useState(false);
+      const [showHelp, setShowHelp] = useState(false);
+      const [studentName, setStudentName] = useState(DEFAULT_NAME);
+      const [startTerm, setStartTerm] = useState(DEFAULT_START_TERM);
+      const [gradTerm, setGradTerm] = useState(defaultGradTerm(DEFAULT_START_TERM));
+      // Picking a starting term resets the expected graduation term to its default (still editable afterwards)
+      const changeStartTerm = (t) => { setStartTerm(t); setGradTerm(defaultGradTerm(t)); };
       const [isOverCreditLimit, setIsOverCreditLimit] = useState(false);
 
       // Drag handlers
@@ -1135,7 +1173,7 @@ import './index.css';
                     SU
                   </div>
                   <div>
-                    <h1 className="text-2xl font-bold text-gray-900 serif">SBS Academic Advisor</h1>
+                    <h1 className="text-2xl font-bold text-gray-900 serif">CourseCoach</h1>
                     <p className="text-xs text-gray-500 whitespace-nowrap">Suffolk University • Sawyer Business School</p>
                   </div>
                 </div>
@@ -1215,15 +1253,51 @@ import './index.css';
                       <span className="text-xs text-gray-600">Transfer</span>
                     </div>
                   </div>
+                  {/* Help */}
+                  <button
+                    onClick={() => setShowHelp(true)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl border border-amber-300 bg-amber-50 text-amber-800 text-sm font-semibold hover:bg-amber-100 whitespace-nowrap"
+                  >
+                    <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-xs flex items-center justify-center">?</span>
+                    Help
+                  </button>
                   {/* User */}
                   <div className="flex items-center gap-3">
-                    <div className="text-right hidden sm:block whitespace-nowrap">
-                      <div className="font-semibold text-gray-800">Jane Smith</div>
-                      <div className="text-xs text-gray-500">Started: {START_TERM}</div>
-                      <div className="text-xs text-gray-500">Expected Grad.: {EXPECTED_GRAD_TERM}</div>
+                    <div className="hidden sm:flex flex-col items-end gap-0.5 whitespace-nowrap">
+                      <input
+                        type="text"
+                        value={studentName}
+                        maxLength={NAME_MAX}
+                        aria-label="Your name or alias (up to 30 characters)"
+                        title="Click to type your name or an alias"
+                        onChange={(e) => setStudentName(e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        onBlur={() => { if (!studentName.trim()) setStudentName(DEFAULT_NAME); }}
+                        className="w-60 text-sm text-right font-semibold text-gray-800 bg-transparent rounded-md px-1.5 py-0.5 border border-transparent hover:border-gray-300 focus:border-amber-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
+                      />
+                      <label className="flex items-center gap-1.5 text-xs text-gray-500">
+                        Started:
+                        <select
+                          value={startTerm}
+                          onChange={(e) => changeStartTerm(e.target.value)}
+                          className="text-xs text-gray-700 bg-transparent rounded-md px-1 py-0.5 border border-transparent hover:border-gray-300 focus:border-amber-400 focus:bg-white focus:outline-none cursor-pointer"
+                        >
+                          {START_TERMS.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </label>
+                      <label className="flex items-center gap-1.5 text-xs text-gray-500">
+                        Expected Grad.:
+                        <select
+                          value={gradTerm}
+                          onChange={(e) => setGradTerm(e.target.value)}
+                          className="text-xs text-gray-700 bg-transparent rounded-md px-1 py-0.5 border border-transparent hover:border-gray-300 focus:border-amber-400 focus:bg-white focus:outline-none cursor-pointer"
+                        >
+                          {gradTermOptions(startTerm).map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </label>
                     </div>
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold shadow-md">
-                      JS
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold shadow-md" aria-hidden="true">
+                      {initialsOf(studentName)}
                     </div>
                   </div>
                 </div>
@@ -1524,6 +1598,9 @@ import './index.css';
               </div>
             </div>
           </footer>
+
+          {/* Quick-start help pop-up */}
+          <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
 
           {/* Credit Warning Modal */}
           <CreditWarningModal 

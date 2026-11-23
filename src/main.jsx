@@ -1,53 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SBS Academic Advisor | Suffolk University</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: 'DM Sans', sans-serif; }
-    .serif { font-family: 'DM Serif Display', serif; }
-    .scrollbar-hide::-webkit-scrollbar { display: none; }
-    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-    [draggable="true"] { 
-      cursor: grab; 
-      user-select: none;
-    }
-    [draggable="true"]:active { 
-      cursor: grabbing; 
-    }
-    @keyframes bounce-in {
-      0% { transform: scale(0.9); opacity: 0; }
-      50% { transform: scale(1.02); }
-      100% { transform: scale(1); opacity: 1; }
-    }
-    /* Spotlight on a newly added plan tab for ~1.6 s */
-    @keyframes tab-spotlight {
-      0%   { transform: scale(0.85); opacity: 0; box-shadow: 0 0 0 0 rgba(251,146,60,0.0); }
-      20%  { transform: scale(1.12); opacity: 1; background-color: #fff7ed; box-shadow: 0 0 0 6px rgba(251,146,60,0.55), 0 0 28px 10px rgba(251,191,36,0.75); }
-      60%  { transform: scale(1.06); box-shadow: 0 0 0 4px rgba(251,146,60,0.35), 0 0 22px 8px rgba(251,191,36,0.5); }
-      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(251,146,60,0), 0 0 0 0 rgba(251,191,36,0); }
-    }
-    .tab-spotlight { animation: tab-spotlight 1.6s ease-out 1; position: relative; z-index: 5; }
-    @media (prefers-reduced-motion: reduce) { .tab-spotlight { animation: none; } }
-    .animate-bounce-in {
-      animation: bounce-in 0.3s ease-out forwards;
-    }
-  </style>
-</head>
-<body class="bg-gradient-to-br from-slate-50 via-amber-50/30 to-orange-50/40 min-h-screen">
-  <div id="root"></div>
-
-  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <script type="text/babel">
-    const { useState, useRef, useEffect } = React;
+import React, { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
+import './index.css';
 
     const initialCourseData = {
       year1: {
@@ -1581,7 +1535,5 @@
       );
     }
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-  </script>
-</body>
-</html>
+
+createRoot(document.getElementById('root')).render(<App />);

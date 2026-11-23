@@ -1,9 +1,9 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
-import { FullGuide, PLANNER_URL } from './guideContent.jsx';
+import { FullHelp, PLANNER_URL } from './helpContent.jsx';
 
-function GuidePage() {
+function HelpPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="bg-white/80 backdrop-blur-lg border-b border-gray-200 sticky top-0 z-50">
@@ -27,7 +27,7 @@ function GuidePage() {
       </header>
 
       <main className="flex-1 max-w-3xl w-full mx-auto px-6 py-10">
-        <FullGuide />
+        <FullHelp />
       </main>
 
       <footer className="py-6 border-t border-gray-200 bg-white/60">
@@ -42,4 +42,4 @@ function GuidePage() {
   );
 }
 
-createRoot(document.getElementById('root')).render(<GuidePage />);
+createRoot(document.getElementById('root')).render(<HelpPage />);

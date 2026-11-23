@@ -1,13 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 
-// Edit the wording of the student guide in this one file.
-// It feeds both the quick-start pop-up (on the planner) and the full guide page (guide.html).
+// Edit the wording of the help page in this one file.
+// It feeds both the quick-start pop-up (on the planner) and the full help page (help.html).
 
 export const ADVISING_URL =
   'https://www.suffolk.edu/academics/advising-student-services/undergraduate-academic-advising-center';
 
 const BASE = import.meta.env.BASE_URL; // "/CourseCoach/"
-export const GUIDE_URL = BASE + 'guide.html';
+export const HELP_URL = BASE + 'help.html';
 export const PLANNER_URL = BASE;
 
 const linkClass = 'text-amber-600 hover:text-amber-700 underline';
@@ -78,7 +78,7 @@ export function QuickStart() {
   );
 }
 
-export function GuideModal({ open, onClose }) {
+export function HelpModal({ open, onClose }) {
   const closeRef = useRef(null);
 
   useEffect(() => {
@@ -96,11 +96,11 @@ export function GuideModal({ open, onClose }) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="guide-modal-title"
+        aria-labelledby="help-modal-title"
         className="relative bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto animate-bounce-in"
       >
         <div className="px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-600 flex items-center justify-between rounded-t-2xl">
-          <h2 id="guide-modal-title" className="text-xl font-bold text-white serif">Quick start</h2>
+          <h2 id="help-modal-title" className="text-xl font-bold text-white serif">Quick start</h2>
           <button
             ref={closeRef}
             onClick={onClose}
@@ -119,8 +119,8 @@ export function GuideModal({ open, onClose }) {
           <Disclaimer />
         </div>
         <div className="sticky bottom-0 px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-2xl flex flex-wrap items-center justify-between gap-3">
-          <a href={GUIDE_URL} target="_blank" rel="noopener noreferrer" className="font-semibold text-amber-600 hover:text-amber-700 underline">
-            Open the full guide ↗
+          <a href={HELP_URL} target="_blank" rel="noopener noreferrer" className="font-semibold text-amber-600 hover:text-amber-700 underline">
+            Open the full help page ↗
           </a>
           <button onClick={onClose} className="px-5 py-2 rounded-xl font-semibold text-white bg-amber-500 hover:bg-amber-600">
             Got it
@@ -158,7 +158,7 @@ const toc = [
   ['help', 'Questions about your degree'],
 ];
 
-export function FullGuide() {
+export function FullHelp() {
   return (
     <div className="space-y-10">
       <div>
@@ -171,7 +171,7 @@ export function FullGuide() {
 
       <Disclaimer />
 
-      <nav aria-label="Guide sections" className="rounded-xl bg-white border border-gray-200 p-4">
+      <nav aria-label="Help sections" className="rounded-xl bg-white border border-gray-200 p-4">
         <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">On this page</div>
         <ul className="flex flex-wrap gap-x-5 gap-y-1">
           {toc.map(([id, label]) => (
@@ -263,10 +263,12 @@ export function FullGuide() {
               keep a copy.
             </p>
           </Faq>
-          <Faq q="Who is Jane Smith?">
+          <Faq q="Can I put my own name and dates at the top?">
             <p>
-              The planner opens with a sample student so you can see how everything works. It is not a real record and
-              it does not know who you are.
+              Yes. Type your name or an alias in the name box (up to 30 characters), then pick your starting semester
+              and your expected graduation semester from the lists. When you pick a starting semester, the expected
+              graduation semester fills in automatically (seven semesters later), and you can change it. None of this
+              is saved or sent anywhere. It is only for your own reference on this page.
             </p>
           </Faq>
           <Faq q="Is this my official degree audit?">

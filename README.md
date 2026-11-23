@@ -10,12 +10,12 @@ An academic advising web app for the Sawyer Business School (Suffolk University)
 CourseCoach/
 ├── src/
 │   ├── main.jsx            <- the app (React)
-│   ├── guideContent.jsx    <- student guide wording: quick-start pop-up AND full guide page
-│   ├── guide.jsx           <- layout of the full guide page
+│   ├── helpContent.jsx     <- help wording: quick-start pop-up AND full help page
+│   ├── help.jsx            <- layout of the full help page
 │   └── index.css           <- styles (Tailwind + custom CSS)
 ├── public/                 <- files copied as-is: favicon.svg, og-image.png (link-preview image)
 ├── index.html              <- page shell for the planner: title, description, link-preview tags
-├── guide.html              <- page shell for the student guide (published at /CourseCoach/guide.html)
+├── help.html              <- page shell for the help page (published at /CourseCoach/help.html)
 ├── scripts/
 │   ├── publish.ps1         <- branch + build + commit + push, then prints the pull-request link
 │   └── after-merge.ps1     <- run after merging: updates your computer

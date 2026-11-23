@@ -8,10 +8,10 @@ export default defineConfig({
   plugins: [react()],
   build: {
     rollupOptions: {
-      // Two pages: the planner (index.html) and the student guide (guide.html)
+      // Two pages: the planner (index.html) and the help page (help.html)
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
-        guide: fileURLToPath(new URL('./guide.html', import.meta.url)),
+        help: fileURLToPath(new URL('./help.html', import.meta.url)),
       },
     },
   },

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import './index.css';
+import { GuideModal } from './guideContent.jsx';
 
     const initialCourseData = {
       year1: {
@@ -906,6 +907,7 @@ import './index.css';
       const [dragSource, setDragSource] = useState(null);
       const [dropTarget, setDropTarget] = useState(null);
       const [showCreditWarning, setShowCreditWarning] = useState(false);
+      const [showGuide, setShowGuide] = useState(false);
       const [isOverCreditLimit, setIsOverCreditLimit] = useState(false);
 
       // Drag handlers
@@ -1135,7 +1137,7 @@ import './index.css';
                     SU
                   </div>
                   <div>
-                    <h1 className="text-2xl font-bold text-gray-900 serif">SBS Academic Advisor</h1>
+                    <h1 className="text-2xl font-bold text-gray-900 serif">CourseCoach</h1>
                     <p className="text-xs text-gray-500 whitespace-nowrap">Suffolk University • Sawyer Business School</p>
                   </div>
                 </div>
@@ -1215,6 +1217,14 @@ import './index.css';
                       <span className="text-xs text-gray-600">Transfer</span>
                     </div>
                   </div>
+                  {/* Help */}
+                  <button
+                    onClick={() => setShowGuide(true)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl border border-amber-300 bg-amber-50 text-amber-800 text-sm font-semibold hover:bg-amber-100 whitespace-nowrap"
+                  >
+                    <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-xs flex items-center justify-center">?</span>
+                    Guide
+                  </button>
                   {/* User */}
                   <div className="flex items-center gap-3">
                     <div className="text-right hidden sm:block whitespace-nowrap">
@@ -1524,6 +1534,9 @@ import './index.css';
               </div>
             </div>
           </footer>
+
+          {/* Quick-start guide pop-up */}
+          <GuideModal open={showGuide} onClose={() => setShowGuide(false)} />
 
           {/* Credit Warning Modal */}
           <CreditWarningModal 

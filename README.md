@@ -8,34 +8,47 @@ An academic advising web app for the Sawyer Business School (Suffolk University)
 
 ```
 CourseCoach/
-├── site/                  <- everything here is published to the web
-│   └── index.html         <- the app (single-file React + Tailwind)
-├── scripts/publish.ps1    <- one-command commit + push
-├── .github/workflows/     <- GitHub Actions: auto-deploy to Pages on push to main
-├── .gitignore             <- keeps private/scratch files out of the repo
+├── src/
+│   ├── main.jsx            <- the app (React)
+│   └── index.css           <- styles (Tailwind + custom CSS)
+├── public/                 <- files copied as-is: favicon.svg, og-image.png (link-preview image)
+├── index.html              <- page shell: title, description, link-preview tags
+├── scripts/
+│   ├── publish.ps1         <- branch + build + commit + push, then prints the pull-request link
+│   └── after-merge.ps1     <- run after merging: updates your computer
+├── .github/workflows/      <- GitHub Actions: build on every pull request, deploy when merged to main
+├── package.json, vite.config.js, tailwind.config.js, postcss.config.js   <- build setup
 └── README.md
 ```
 
-Only `site/` is deployed. Put new pages, images, and data files for the site inside `site/`.
+`dist/` and `node_modules/` are created on your computer when you build or install. They are git-ignored.
 
-## Everyday workflow
+## Everyday workflow (branch + review)
 
-1. Edit files in `C:\Dev\CourseCoach\site\`.
-2. Preview locally: open `site\index.html` in a browser (or run `python -m http.server 8000 --directory site` and visit http://localhost:8000).
-3. Publish:
+1. Edit files in `C:\Dev\CourseCoach\src\` (or `public\`, `index.html`).
+2. Preview live while you work:
+   ```powershell
+   npm run dev
+   ```
+   Then open the address it prints (it ends in `/CourseCoach/`). Press Ctrl+C to stop.
+3. Send it to GitHub for review:
    ```powershell
    .\scripts\publish.ps1 "Short description of what changed"
    ```
-4. Wait about a minute; the live site updates automatically. Progress is under the repo's **Actions** tab.
+4. Open the link it prints, click **Create pull request**, wait for the green check (GitHub builds the site), then click **Merge pull request**. The live site updates in about a minute.
+5. Back in PowerShell:
+   ```powershell
+   .\scripts\after-merge.ps1
+   ```
+
+First time on a new computer: install Node.js, clone the repo, run `npm install`.
 
 ## Practices
 
 - **Public means public.** Everything committed, including past versions, is visible. Use only sample or fictional student data. Never commit real student names, IDs, grades, or advising notes.
-- **Small, frequent commits** with clear messages make it easy to undo mistakes (`git revert <commit>`).
-- **Keep drafts out of the repo**: use `drafts/` or `scratch/` (git-ignored).
+- **Nothing goes live without a merge.** The green build check on the pull request means the site compiled; still skim the change before merging.
+- **Small, frequent changes** with clear messages make mistakes easy to undo. To roll back, open the merged pull request on GitHub and click **Revert**.
 - **Stay outside OneDrive.** This folder lives in `C:\Dev` because OneDrive syncing can corrupt `.git`. GitHub is the backup.
-- **Roll back a bad publish:** `git revert HEAD` then `.\scripts\publish.ps1 "Revert last change"`.
-
-## Known improvements to consider
-
-- The app loads React, Babel, and Tailwind from CDNs in development mode. It works, but is slower than a built version.
+- **Token:** pushes use a GitHub personal access token (classic, scopes `repo` and `workflow`). It expires; create a new one at github.com/settings/tokens when asked.
+- **Keep drafts out of the repo** in `drafts/` or `scratch/` (git-ignored).
+- **Changing the repo name?** Update `base` in `vite.config.js` and the URLs in `index.html`.

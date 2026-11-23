@@ -19,3 +19,7 @@ data-private/
 drafts/
 scratch/
 .claude/settings.local.json
+
+# Build output and installed tools
+node_modules/
+dist/

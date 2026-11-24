@@ -546,23 +546,23 @@ import { HelpModal } from './helpContent.jsx';
       if (!menu || !course) return null;
       const list = menuCourses(course);
       const below = menu.rect.bottom + 300 < window.innerHeight;
-      const pos = { left: Math.max(8, Math.min(menu.rect.left, window.innerWidth - 328)), ...(below ? { top: menu.rect.bottom + 4 } : { bottom: window.innerHeight - menu.rect.top + 4 }) };
+      const pos = { left: Math.max(8, Math.min(menu.rect.left, window.innerWidth - 392)), ...(below ? { top: menu.rect.bottom + 4 } : { bottom: window.innerHeight - menu.rect.top + 4 }) };
       return ReactDOM.createPortal(
         <div className="fixed inset-0 z-50" onClick={onClose}>
           <div role="menu" onClick={(e) => e.stopPropagation()} style={pos}
-            className="fixed w-80 max-h-72 overflow-y-auto bg-white rounded-xl border border-gray-200 shadow-xl py-1 text-sm">
+            className="menu-font fixed w-96 max-h-72 overflow-y-auto bg-white rounded-xl border border-gray-200 shadow-xl py-1 text-[15px]">
             <button type="button" role="menuitem" onClick={onReset}
               className="w-full flex items-center gap-2 px-3 py-2 text-left font-medium text-gray-800 hover:bg-gray-50">
-              <span className="w-4 text-center">{!course.orig && !(course.transferred && course.takenBefore !== undefined) ? "\u2713" : ""}</span>Select
+              <span className="w-4 shrink-0 text-center">{!course.orig && !(course.transferred && course.takenBefore !== undefined) ? "\u2713" : ""}</span>Select
             </button>
             <button type="button" role="menuitemcheckbox" aria-checked={!!course.transferred} onClick={onTransferred}
               className="w-full flex items-center gap-2 px-3 py-2 text-left font-medium text-gray-800 hover:bg-gray-50">
-              <span className="w-4 text-center">{course.transferred ? "\u2713" : ""}</span>Transferred
+              <span className="w-4 shrink-0 text-center">{course.transferred ? "\u2713" : ""}</span>Transferred
             </button>
             {!manual ? (
               <button type="button" role="menuitem" onClick={() => { setMCode(course.manual ? course.name : ""); setMTitle(course.manual ? course.fullName : ""); setManual(true); }}
                 className="w-full flex items-center gap-2 px-3 py-2 text-left font-medium text-gray-800 hover:bg-gray-50">
-                <span className="w-4 text-center">{course.manual ? "\u2713" : ""}</span>Enter manually…
+                <span className="w-4 shrink-0 text-center">{course.manual ? "\u2713" : ""}</span>Enter manually…
               </button>
             ) : (
               <form className="px-3 py-2 space-y-2 bg-gray-50 border-y border-gray-100"
@@ -583,9 +583,9 @@ import { HelpModal } from './helpContent.jsx';
               return (
                 <button key={it.code} type="button" role="menuitem" disabled={used} onClick={() => onChoose(it)}
                   className={`w-full flex items-baseline gap-2 px-3 py-1.5 text-left ${used ? 'text-gray-300 cursor-default' : 'text-gray-700 hover:bg-gray-50'}`}>
-                  <span className="w-4 text-center text-gray-500">{current ? "\u2713" : ""}</span>
-                  <span className="font-semibold shrink-0">{it.code}</span>
-                  <span className="truncate" title={it.title}>{it.title}</span>
+                  <span className="w-4 shrink-0 text-center text-gray-500">{current ? "\u2713" : ""}</span>
+                  <span className="font-semibold shrink-0 text-left" style={{ width: "10.5ch" }}>{it.code}</span>
+                  <span className="truncate text-left min-w-0" title={it.title}>{it.title}</span>
                 </button>
               );
             })}
@@ -594,7 +594,7 @@ import { HelpModal } from './helpContent.jsx';
         </div>, document.body);
     };
 
-    const SemesterColumn = ({ title, courses, semesterType, yearKey, onDragStart, onDragEnd, onDrop, onDragEnter, isDropTarget, draggingCourse, isYearCompleted }) => {
+    const SemesterColumn = ({ title, courses, semesterType, yearKey, onDragStart, onDragEnd, onDrop, onDragEnter, isDropTarget, draggingCourse, isYearCompleted, onCollapse }) => {
       const totalCredits = courses.reduce((sum, c) => sum + c.credits, 0);
       const isEmpty = courses.length === 0;
       const isSummer = semesterType === 'summer';
@@ -683,6 +683,13 @@ import { HelpModal } from './helpContent.jsx';
                     </button>
                   )}
                 </div>
+                <div className="flex items-center gap-2">
+                {onCollapse && isEmpty && (
+                  <button type="button" onClick={onCollapse} aria-label="Hide summer" title="Hide this summer (it reopens when you click the Summer tab)"
+                    className="px-2 py-0.5 rounded-md border border-gray-300 bg-white text-xs font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700">
+                    Hide
+                  </button>
+                )}
                 <div className={`px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1 ${getCreditBadgeStyle()}`}>
                   {isOverWarning && !isSummer && !isCompleted && (
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -690,6 +697,7 @@ import { HelpModal } from './helpContent.jsx';
                     </svg>
                   )}
                   {totalCredits} cr
+                </div>
                 </div>
               </div>
             </div>
@@ -751,7 +759,13 @@ import { HelpModal } from './helpContent.jsx';
     const YearRow = ({ yearNum, yearData, yearKey, onDragStart, onDragEnd, onDrop, onDragEnter, dropTarget, draggingCourse }) => {
       const yearCredits = Object.values(yearData).flat().reduce((sum, c) => sum + c.credits, 0);
       const allCourses = Object.values(yearData).flat();
-      
+
+      // Summer is a slim vertical tab until the student opens it. A summer that has courses always stays open.
+      const [summerOpen, setSummerOpen] = useState(false);
+      const summerHasCourses = yearData.summer.length > 0;
+      const showSummer = summerHasCourses || summerOpen;
+      const summerIsDropTarget = dropTarget?.yearKey === yearKey && dropTarget?.semester === 'summer';
+
       // A year is completed if it has courses and all of them are taken
       const isYearCompleted = false; // years are never grayed out on their own
       
@@ -815,19 +829,48 @@ import { HelpModal } from './helpContent.jsx';
               draggingCourse={draggingCourse}
               isYearCompleted={isYearCompleted}
             />
-            <SemesterColumn 
-              title={`Year ${yearNum}, Summer`}
-              courses={yearData.summer} 
-              semesterType="summer" 
-              yearKey={yearKey}
-              onDragStart={onDragStart}
-              onDragEnd={onDragEnd}
-              onDrop={onDrop}
-              onDragEnter={onDragEnter}
-              isDropTarget={dropTarget?.yearKey === yearKey && dropTarget?.semester === 'summer'}
-              draggingCourse={draggingCourse}
-              isYearCompleted={isYearCompleted}
-            />
+            {showSummer ? (
+              <SemesterColumn
+                title={`Year ${yearNum}, Summer`}
+                courses={yearData.summer}
+                semesterType="summer"
+                yearKey={yearKey}
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
+                onDrop={onDrop}
+                onDragEnter={onDragEnter}
+                isDropTarget={summerIsDropTarget}
+                draggingCourse={draggingCourse}
+                isYearCompleted={isYearCompleted}
+                onCollapse={() => setSummerOpen(false)}
+              />
+            ) : (
+              <button
+                type="button"
+                aria-expanded="false"
+                aria-label={`Show Year ${yearNum} summer`}
+                title="Show summer. You can also drop a course here."
+                onClick={() => setSummerOpen(true)}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                onDragEnter={(e) => { e.preventDefault(); onDragEnter && onDragEnter(yearKey, 'summer'); }}
+                onDrop={(e) => { e.preventDefault(); onDrop(yearKey, 'summer'); }}
+                className={`flex-shrink-0 w-12 rounded-2xl border shadow-sm flex flex-col items-center justify-center gap-3 py-4 transition-all duration-200 ${
+                  summerIsDropTarget
+                    ? 'ring-2 ring-amber-400 ring-offset-2 border-amber-300 bg-amber-50 text-amber-700'
+                    : draggingCourse
+                      ? 'border-dashed border-amber-300 bg-amber-50/60 text-amber-700'
+                      : 'border-gray-200 bg-gray-50/80 text-gray-500 hover:bg-white hover:text-amber-700 hover:border-amber-300'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+                </svg>
+                <span className="text-sm font-semibold tracking-wide" style={{ writingMode: 'vertical-rl' }}>
+                  {draggingCourse ? 'Drop for summer' : 'Summer +'}
+                </span>
+              </button>
+            )}
           </div>
         </div>
       );
@@ -883,6 +926,17 @@ import { HelpModal } from './helpContent.jsx';
       for (let y = startYear; y <= startYear + 8; y++) for (const s of ["Spring", "Summer", "Fall"]) out.push(`${s} ${y}`);
       return out.filter(t => key(t) >= key(start));
     };
+
+    // Left navigation menu entries (level 2 = indented under the item above). Each id matches a section on the page.
+    const NAV_ITEMS = [
+      { id: "overview", label: "Overview", level: 1 },
+      { id: "requirements", label: "BSBA Graduation Requirements", level: 1 },
+      { id: "plans", label: "All Years", level: 1 },
+      { id: "year-1", label: "Year 1", level: 2, year: 1 },
+      { id: "year-2", label: "Year 2", level: 2, year: 2 },
+      { id: "year-3", label: "Year 3", level: 2, year: 3 },
+      { id: "year-4", label: "Year 4", level: 2, year: 4 },
+    ];
 
     // Initials for the round badge: "[Your Name]" -> "YN", "Jane Smith" -> "JS"
     const initialsOf = (name) => {
@@ -1158,105 +1212,143 @@ import { HelpModal } from './helpContent.jsx';
         </div>
       );
 
-      const yearsToShow = activeYear === null 
-        ? [1, 2, 3, 4] 
+      const yearsToShow = activeYear === null
+        ? [1, 2, 3, 4]
         : [activeYear];
+
+      // Total credits across all four years of the active plan (shown under the "All Years" heading)
+      const allYearsCredits = Object.values(courseData).flatMap(y => Object.values(y).flat()).reduce((sum, c) => sum + c.credits, 0);
+
+      // Left navigation menu: which section is highlighted, and what a click does
+      const [activeSection, setActiveSection] = useState("overview");
+      useEffect(() => {
+        // Highlight the section near the top of the screen. A year wins over "All Years" because years sit inside it.
+        const ids = NAV_ITEMS.map(i => i.id);
+        const visible = new Set();
+        const obs = new IntersectionObserver((entries) => {
+          entries.forEach(e => (e.isIntersecting ? visible.add(e.target.id) : visible.delete(e.target.id)));
+          const year = ids.find(id => id.startsWith("year-") && visible.has(id));
+          const pick = year || ids.find(id => visible.has(id));
+          if (pick) setActiveSection(pick);
+        }, { rootMargin: "-110px 0px -55% 0px" });
+        ids.forEach(id => { const el = document.getElementById(id); if (el) obs.observe(el); });
+        return () => obs.disconnect();
+      }, [activeYear]);
+      const goToSection = (item) => (e) => {
+        e.preventDefault();
+        // If a single year is showing, switch back to all years first so the target exists
+        const needsAll = activeYear !== null && (item.id === "plans" || (item.year && item.year !== activeYear));
+        if (needsAll) setActiveYear(null);
+        setActiveSection(item.id);
+        const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        setTimeout(() => {
+          const el = document.getElementById(item.id);
+          if (el) el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+        }, needsAll ? 60 : 0);
+      };
 
       return (
         <div className="min-h-screen">
           {/* Header */}
           <header className="bg-white/80 backdrop-blur-lg border-b border-gray-200 sticky top-0 z-50">
-            <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="max-w-7xl mx-auto px-6 lg:pr-[41px] py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4 flex-shrink-0">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                    SU
+                  <div className="h-12 px-3 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-bold text-base tracking-tight shadow-lg flex-shrink-0">
+                    CouCoa
                   </div>
                   <div>
                     <h1 className="text-2xl font-bold text-gray-900 serif">CourseCoach</h1>
-                    <p className="text-xs text-gray-500 whitespace-nowrap">Suffolk University • Sawyer Business School</p>
+                    <p className="text-[11px] leading-snug text-gray-500 whitespace-nowrap">Suffolk University<br />Sawyer Business School</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 min-w-0">
-                  {/* Legend */}
-                  <div className="hidden lg:flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 bg-gray-50 rounded-xl">
-                    <span className="text-xs font-semibold text-gray-400 uppercase">Legend:</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded bg-gray-700"></div>
-                      <span className="text-xs text-gray-600">GenEd</span>
+                <div className="flex flex-1 items-center justify-end gap-3 min-w-0 ml-4">
+                  {/* Legend: one line, fills the space between the title and the student details */}
+                  <div
+                    role="group"
+                    aria-label="Legend"
+                    title="Legend: what the card colors and symbols mean"
+                    className={`hidden lg:flex flex-1 min-w-0 items-center justify-between gap-x-1 gap-y-1 px-2 py-2 bg-gray-50 rounded-xl whitespace-nowrap ${
+                      // Two majors, two minors or a double-count notice add too many entries for one line: wrap those cases
+                      selectedMajors.length === 2 || selectedMinors.length === 2 || (activeTab.notice || "").includes("Double count") ? "flex-wrap" : "flex-nowrap overflow-hidden"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1">
+                      <div className="w-2.5 h-2.5 rounded bg-gray-700"></div>
+                      <span className="text-[11px] text-gray-600">GenEd</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded bg-blue-600"></div>
-                      <span className="text-xs text-gray-600">SBS Core</span>
+                    <div className="flex items-center gap-1">
+                      <div className="w-2.5 h-2.5 rounded bg-blue-600"></div>
+                      <span className="text-[11px] text-gray-600">SBS Core</span>
                     </div>
                     {selectedMajors.length === 1 ? (
                       <>
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded bg-orange-600"></div>
-                          <span className="text-xs text-gray-600">Major (Required)</span>
+                        <div className="flex items-center gap-1">
+                          <div className="w-2.5 h-2.5 rounded bg-orange-600"></div>
+                          <span className="text-[11px] text-gray-600">Major (Required)</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded bg-yellow-400"></div>
-                          <span className="text-xs text-gray-600">Major (Elective)</span>
+                        <div className="flex items-center gap-1">
+                          <div className="w-2.5 h-2.5 rounded bg-yellow-400"></div>
+                          <span className="text-[11px] text-gray-600">Major (Elective)</span>
                         </div>
                       </>
                     ) : (
                       <>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-3 h-3 rounded bg-orange-600"></div><div className="w-3 h-3 rounded bg-yellow-400"></div>
-                          <span className="text-xs text-gray-600">Major 1: {majors[selectedMajors[0]].code}</span>
+                        <div className="flex items-center gap-1">
+                          <div className="w-2.5 h-2.5 rounded bg-orange-600"></div><div className="w-2.5 h-2.5 rounded bg-yellow-400"></div>
+                          <span className="text-[11px] text-gray-600">Major 1: {majors[selectedMajors[0]].code}</span>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-3 h-3 rounded bg-[#b98a63]"></div><div className="w-3 h-3 rounded bg-[#bdb36a]"></div>
-                          <span className="text-xs text-gray-600">Major 2: {majors[selectedMajors[1]].code}</span>
+                        <div className="flex items-center gap-1">
+                          <div className="w-2.5 h-2.5 rounded bg-[#b98a63]"></div><div className="w-2.5 h-2.5 rounded bg-[#bdb36a]"></div>
+                          <span className="text-[11px] text-gray-600">Major 2: {majors[selectedMajors[1]].code}</span>
                         </div>
                       </>
                     )}
                     {(activeTab.notice || "").includes("Double count") && (
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded" style={{ background: "linear-gradient(to right,#fb923c 66%,#2dd4bf 66%)" }}></div>
-                        <span className="text-xs text-gray-600">Double-counted</span>
+                      <div className="flex items-center gap-1">
+                        <div className="w-2.5 h-2.5 rounded" style={{ background: "linear-gradient(to right,#fb923c 66%,#2dd4bf 66%)" }}></div>
+                        <span className="text-[11px] text-gray-600">Double-counted</span>
                       </div>
                     )}
                     {selectedMinors.length === 1 && (
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded bg-teal-600"></div><div className="w-3 h-3 rounded bg-cyan-500"></div>
-                        <span className="text-xs text-gray-600">Minor: {minors[selectedMinors[0]].code}</span>
+                      <div className="flex items-center gap-1">
+                        <div className="w-2.5 h-2.5 rounded bg-teal-600"></div><div className="w-2.5 h-2.5 rounded bg-cyan-500"></div>
+                        <span className="text-[11px] text-gray-600">Minor: {minors[selectedMinors[0]].code}</span>
                       </div>
                     )}
                     {selectedMinors.length === 2 && (
                       <>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-3 h-3 rounded bg-teal-600"></div><div className="w-3 h-3 rounded bg-cyan-500"></div>
-                          <span className="text-xs text-gray-600">Minor 1: {minors[selectedMinors[0]].code}</span>
+                        <div className="flex items-center gap-1">
+                          <div className="w-2.5 h-2.5 rounded bg-teal-600"></div><div className="w-2.5 h-2.5 rounded bg-cyan-500"></div>
+                          <span className="text-[11px] text-gray-600">Minor 1: {minors[selectedMinors[0]].code}</span>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-3 h-3 rounded bg-[#6f9a93]"></div><div className="w-3 h-3 rounded bg-[#7f9fac]"></div>
-                          <span className="text-xs text-gray-600">Minor 2: {minors[selectedMinors[1]].code}</span>
+                        <div className="flex items-center gap-1">
+                          <div className="w-2.5 h-2.5 rounded bg-[#6f9a93]"></div><div className="w-2.5 h-2.5 rounded bg-[#7f9fac]"></div>
+                          <span className="text-[11px] text-gray-600">Minor 2: {minors[selectedMinors[1]].code}</span>
                         </div>
                       </>
                     )}
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded bg-purple-600"></div>
-                      <span className="text-xs text-gray-600">Free Elective</span>
+                    <div className="flex items-center gap-1">
+                      <div className="w-2.5 h-2.5 rounded bg-purple-600"></div>
+                      <span className="text-[11px] text-gray-600">Free Elective</span>
                     </div>
-                    <div className="flex items-center gap-2 border-l border-gray-300 pl-3">
-                      <div className="w-5 h-5 rounded bg-gray-300 flex items-center justify-center">
-                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <div className="flex items-center gap-2 border-l border-gray-300 pl-2">
+                      <div className="w-4 h-4 rounded bg-gray-300 flex items-center justify-center">
+                        <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       </div>
-                      <span className="text-xs text-gray-600">Completed</span>
+                      <span className="text-[11px] text-gray-600">Completed</span>
                     </div>
-                    <div className="flex items-center gap-2 border-l border-gray-300 pl-3">
+                    <div className="flex items-center gap-2 border-l border-gray-300 pl-2">
                       <span className="text-sm font-medium text-gray-500">(T)</span>
-                      <span className="text-xs text-gray-600">Transfer</span>
+                      <span className="text-[11px] text-gray-600">Transfer</span>
                     </div>
                   </div>
-                  {/* Help */}
+                  {/* Help (small version for narrow screens; on wide screens Help is at the bottom of the left menu) */}
                   <button
                     onClick={() => setShowHelp(true)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl border border-amber-300 bg-amber-50 text-amber-800 text-sm font-semibold hover:bg-amber-100 whitespace-nowrap"
+                    className="lg:hidden flex items-center gap-2 px-3 py-2 rounded-xl border border-amber-300 bg-amber-50 text-amber-800 text-sm font-semibold hover:bg-amber-100 whitespace-nowrap"
                   >
                     <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-xs flex items-center justify-center">?</span>
                     Help
@@ -1273,7 +1365,8 @@ import { HelpModal } from './helpContent.jsx';
                         onChange={(e) => setStudentName(e.target.value)}
                         onFocus={(e) => e.target.select()}
                         onBlur={() => { if (!studentName.trim()) setStudentName(DEFAULT_NAME); }}
-                        className="w-60 text-sm text-right font-semibold text-gray-800 bg-transparent rounded-md px-1.5 py-0.5 border border-transparent hover:border-gray-300 focus:border-amber-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
+                        style={{ width: `calc(${Math.min(Math.max(studentName.length, 11), 18) + 2}ch + 14px)` }}
+                        className="max-w-full text-sm text-right font-semibold text-gray-800 bg-transparent rounded-md px-1.5 py-0.5 border border-transparent hover:border-gray-300 focus:border-amber-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
                       />
                       <label className="flex items-center gap-1.5 text-xs text-gray-500">
                         Started:
@@ -1305,9 +1398,43 @@ import { HelpModal } from './helpContent.jsx';
             </div>
           </header>
 
-          <main className="max-w-7xl mx-auto px-6 py-8">
-            {/* Top Stats Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1.1fr_0.8fr_1.4fr] gap-4 mb-4">
+          <div className="max-w-7xl mx-auto px-6 py-8 flex items-start gap-6">
+          {/* Left navigation menu (sticks to the screen while the page scrolls) */}
+          <nav aria-label="Page sections" className="hidden lg:block w-48 flex-shrink-0 sticky top-28 self-start">
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 px-3">On this page</div>
+            <ul className="border-l border-gray-200 space-y-0.5">
+              {NAV_ITEMS.map(item => {
+                const active = activeSection === item.id;
+                return (
+                  <li key={item.id}>
+                    <a
+                      href={"#" + item.id}
+                      onClick={goToSection(item)}
+                      aria-current={active ? "location" : undefined}
+                      className={`block -ml-px border-l-2 py-1.5 pr-2 text-sm transition-colors ${item.level === 2 ? "pl-7 text-[13px]" : "pl-3 font-medium"} ${active ? "border-amber-500 text-amber-700 bg-amber-50/80 font-semibold" : "border-transparent text-gray-600 hover:text-gray-900 hover:bg-white/70"}`}
+                    >
+                      {item.label}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+            {/* Help: large and prominent at the end of the menu */}
+            <button
+              type="button"
+              onClick={() => setShowHelp(true)}
+              className="mt-6 w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white text-lg font-bold shadow-md hover:shadow-lg hover:from-amber-600 hover:to-orange-700 focus:outline-none focus:ring-4 focus:ring-amber-200 transition-shadow"
+            >
+              <span className="w-7 h-7 rounded-full bg-white/25 flex items-center justify-center text-base">?</span>
+              Help
+            </button>
+          </nav>
+
+          <main className="flex-1 min-w-0">
+            {/* Overview section: majors, minors, degree progress */}
+            <section id="overview" className="scroll-mt-28 bg-slate-100/80 rounded-xl p-4 shadow-sm border border-slate-200 mb-6">
+            <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-3">Overview</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_250px] gap-4">
               {/* Major(s) Selector */}
               <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Selected Major(s)</label>
@@ -1368,102 +1495,13 @@ import { HelpModal } from './helpContent.jsx';
                 </div>
               </div>
 
-              {/* Credit Breakdown */}
-              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Credit Breakdown</label>
-                  <div className="flex items-center gap-2 text-xs text-gray-400">
-                    <div className="flex items-center gap-1">
-                      <div className="w-2 h-1.5 bg-gray-500 rounded-sm" style={{ backgroundImage: "repeating-linear-gradient(45deg, rgba(255,255,255,0.55) 0 2px, transparent 2px 4px)" }}></div>
-                      <span>Transfer</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-2 h-1.5 bg-gradient-to-r from-blue-500 via-orange-500 to-purple-500 rounded-sm"></div>
-                      <span>Suffolk</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="px-2 py-1.5 bg-gray-200 rounded-lg">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-gray-800">GenEd</span>
-                      <span className="text-xs font-bold text-gray-800">{transferredCredits.gened + suffolkCredits.gened}/{requiredCredits.gened}</span>
-                    </div>
-                    <SegmentedProgressBar 
-                      transferred={transferredCredits.gened} 
-                      suffolk={suffolkCredits.gened} 
-                      total={requiredCredits.gened}
-                      transferColor="bg-gray-400"
-                      suffolkColor="bg-gray-600"
-                      bgColor="bg-gray-300"
-                    />
-                  </div>
-                  <div className="px-2 py-1.5 bg-blue-100 rounded-lg">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-blue-700">SBS Core</span>
-                      <span className="text-xs font-bold text-blue-700">{transferredCredits.core + suffolkCredits.core}/{requiredCredits.core}</span>
-                    </div>
-                    <SegmentedProgressBar 
-                      transferred={transferredCredits.core} 
-                      suffolk={suffolkCredits.core} 
-                      total={requiredCredits.core}
-                      transferColor="bg-gray-400"
-                      suffolkColor="bg-blue-500"
-                      bgColor="bg-blue-200"
-                    />
-                  </div>
-                  <div className="px-2 py-1.5 bg-orange-100 rounded-lg">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-orange-700">Major: {majorLabel}</span>
-                      <span className="text-xs font-bold text-orange-700">{transferredCredits.major + suffolkCredits.major}/{requiredCredits.major}</span>
-                    </div>
-                    <SegmentedProgressBar 
-                      transferred={transferredCredits.major} 
-                      suffolk={suffolkCredits.major} 
-                      total={requiredCredits.major}
-                      transferColor="bg-gray-400"
-                      suffolkColor="bg-orange-500"
-                      bgColor="bg-orange-200"
-                    />
-                  </div>
-                  <div className="px-2 py-1.5 bg-purple-100 rounded-lg">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-purple-700">Free Electives</span>
-                      <span className="text-xs font-bold text-purple-700">{transferredCredits.elective + suffolkCredits.elective}/{requiredCredits.elective}</span>
-                    </div>
-                    <SegmentedProgressBar 
-                      transferred={transferredCredits.elective} 
-                      suffolk={suffolkCredits.elective} 
-                      total={requiredCredits.elective}
-                      transferColor="bg-gray-400"
-                      suffolkColor="bg-purple-500"
-                      bgColor="bg-purple-200"
-                    />
-                  </div>
-                  {selectedMinors.length > 0 && (
-                    <div className="px-2 py-1.5 bg-teal-100 rounded-lg">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-teal-700 truncate">Minor: {minorLabel}</span>
-                        <span className="text-xs font-bold text-teal-700">{transferredCredits.minor + suffolkCredits.minor}/{requiredCredits.minor}</span>
-                      </div>
-                      <SegmentedProgressBar
-                        transferred={transferredCredits.minor}
-                        suffolk={suffolkCredits.minor}
-                        total={requiredCredits.minor}
-                        transferColor="bg-gray-400"
-                        suffolkColor="bg-teal-500"
-                        bgColor="bg-teal-200"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
+            </section>
 
-            {/* Requirements Summary - moved up */}
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-6">
+            {/* BSBA Graduation Requirements section */}
+            <section id="requirements" className="scroll-mt-28 bg-amber-50/80 rounded-xl p-4 shadow-sm border border-amber-100 mb-6">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">BSBA Graduation Requirements</h3>
+                <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">BSBA Graduation Requirements</h2>
                 <div className="flex items-center gap-3 text-xs text-gray-500">
                   <div className="flex items-center gap-1">
                     <div className="w-3 h-2 bg-gray-500 rounded-sm" style={{ backgroundImage: "repeating-linear-gradient(45deg, rgba(255,255,255,0.55) 0 2px, transparent 2px 4px)" }}></div>
@@ -1506,12 +1544,14 @@ import { HelpModal } from './helpContent.jsx';
                   });
                 })}
               </div>
-            </div>
+            </section>
 
+            {/* Plans section: plan tabs, year filter, year rows */}
+            <section id="plans" className="scroll-mt-28">
+            <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-3">Plans</h2>
             {/* Plan tabs: one per major/minor combination */}
             <div className="mb-4">
               <div className="flex items-end gap-1 flex-wrap border-b border-gray-200">
-                <span className="text-sm font-semibold text-gray-500 mr-2 pb-2">Plans:</span>
                 {tabs.map(t => {
                   const isActive = t.id === activeTab.id;
                   return (
@@ -1566,11 +1606,17 @@ import { HelpModal } from './helpContent.jsx';
             <CompletedContext.Provider value={toggleCompleted}>
             <SelectContext.Provider value={(rect, id, yearKey, semester) => setMenu({ rect, id, yearKey, semester })}>
             <MoveContext.Provider value={moveCourse}>
+            {activeYear === null && (
+              <div className="mb-4">
+                <h3 className="text-xl font-bold text-gray-800 serif">All Years</h3>
+                <p className="text-sm text-gray-500">{allYearsCredits} credits planned across four years</p>
+              </div>
+            )}
             <div className="space-y-8">
               {yearsToShow.map(yearNum => (
-                <YearRow 
-                  key={yearNum} 
-                  yearNum={yearNum} 
+                <div key={yearNum} id={`year-${yearNum}`} className="scroll-mt-28">
+                <YearRow
+                  yearNum={yearNum}
                   yearData={courseData[`year${yearNum}`]}
                   yearKey={`year${yearNum}`}
                   onDragStart={handleDragStart}
@@ -1580,6 +1626,7 @@ import { HelpModal } from './helpContent.jsx';
                   dropTarget={dropTarget}
                   draggingCourse={draggingCourse}
                 />
+                </div>
               ))}
             </div>
             </MoveContext.Provider>
@@ -1587,12 +1634,14 @@ import { HelpModal } from './helpContent.jsx';
             </CompletedContext.Provider>
             <CourseMenu menu={menu} course={menuCourse} usedNames={usedNames} onClose={() => setMenu(null)} onEnter={enterCourse} onReset={resetCourse} onTransferred={toggleTransferred} onChoose={chooseCourse} />
             </LockContext.Provider>
+            </section>
           </main>
+          </div>
 
           {/* Footer */}
           <footer className="mt-8 py-6 border-t border-gray-200 bg-white/50">
             <div className="max-w-7xl mx-auto px-6 text-center text-sm text-gray-500">
-              <div>© 2025 <a href="https://www.theseriousamateur.com/" className="text-amber-600 hover:text-amber-700 underline" target="_blank">the serious amateur dot com</a> by Nesij Huvaj. All rights reserved.</div>
+              <div>©2025 Nesij Huvaj. All rights reserved.</div>
               <div className="mt-1">
                 This work is licensed under a <a rel="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/" className="text-amber-600 hover:text-amber-700 underline" target="_blank">CC BY-NC-SA</a>.
               </div>

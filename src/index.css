@@ -32,3 +32,6 @@ body { font-family: 'DM Sans', sans-serif; }
 .animate-bounce-in {
   animation: bounce-in 0.3s ease-out forwards;
 }
+
+/* Narrower font for the course-picker menu (Select button on each course card) */
+.menu-font { font-family: 'Source Sans 3', 'DM Sans', sans-serif; }

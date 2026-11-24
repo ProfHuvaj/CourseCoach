@@ -9,8 +9,8 @@ function HelpPage() {
       <header className="bg-white/80 backdrop-blur-lg border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
-              SU
+            <div className="h-12 px-3 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-bold text-base tracking-tight shadow-lg flex-shrink-0">
+              CouCoa
             </div>
             <div>
               <div className="text-2xl font-bold text-gray-900 serif">CourseCoach</div>
@@ -32,7 +32,7 @@ function HelpPage() {
 
       <footer className="py-6 border-t border-gray-200 bg-white/60">
         <div className="max-w-3xl mx-auto px-6 text-center text-sm text-gray-500">
-          <div>© 2025 <a href="https://www.theseriousamateur.com/" className="text-amber-600 hover:text-amber-700 underline" target="_blank" rel="noopener noreferrer">the serious amateur dot com</a> by Nesij Huvaj. All rights reserved.</div>
+          <div>©2025 Nesij Huvaj. All rights reserved.</div>
           <div className="mt-1">
             This work is licensed under a <a rel="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/" className="text-amber-600 hover:text-amber-700 underline" target="_blank">CC BY-NC-SA</a>.
           </div>

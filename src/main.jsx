@@ -1516,7 +1516,7 @@ import { HelpModal } from './helpContent.jsx';
 
           <main className="flex-1 min-w-0">
             {/* Overview section: majors, minors, degree progress */}
-            <section id="overview" className="scroll-mt-28 bg-slate-100/80 rounded-xl p-4 shadow-sm border border-slate-200 mb-6">
+            <section id="overview" className="scroll-mt-28 bg-slate-200/70 rounded-xl p-4 shadow-sm border border-slate-300 mb-6">
             <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-3">Overview</h2>
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_250px] gap-4">
               {/* Major(s) Selector */}
@@ -1583,7 +1583,7 @@ import { HelpModal } from './helpContent.jsx';
             </section>
 
             {/* BSBA Graduation Requirements section */}
-            <section id="requirements" className="scroll-mt-28 bg-amber-50/80 rounded-xl p-4 shadow-sm border border-amber-100 mb-6">
+            <section id="requirements" className="scroll-mt-28 bg-slate-200/70 rounded-xl p-4 shadow-sm border border-slate-300 mb-6">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">BSBA Graduation Requirements</h2>
                 <div className="flex items-center gap-3 text-xs text-gray-500">

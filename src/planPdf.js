@@ -125,9 +125,10 @@ export function makePlanPdf(plan) {
         font('bold', fs); const creditW = doc.getTextWidth(credit);
         text(ink); doc.text(credit, x + colW - 4, mid + fs * 0.35, { align: 'right' });
         const room = x + colW - 4 - creditW - 4;
+        font('normal', fs); // course codes are drawn in regular weight (only the credits are bold)
         const code = fit(c.code, room - tx);
         doc.text(code, tx, mid + fs * 0.35);
-        const used = doc.getTextWidth(code) + 4;
+        const used = doc.getTextWidth(code) + 7;
         if (c.title && tx + used < room - 10) {
           font('normal', fs); text('#374151');
           doc.text(fit(c.title, room - tx - used), tx + used, mid + fs * 0.35);

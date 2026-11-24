@@ -862,7 +862,7 @@ import { useHoverTip } from './hoverTip.jsx';
             onDrop={handleDrop}
             className={`rounded-2xl border ${getContainerStyle()} shadow-sm overflow-hidden h-full flex flex-col transition-all duration-200 ${isDropTarget && !isSource ? 'ring-2 ring-amber-400 ring-offset-2 border-amber-300 bg-amber-50/30' : ''}`}
           >
-            <div className={`px-5 py-4 border-b ${getHeaderStyle()}`}>
+            <div className={`px-5 py-[13px] border-b ${getHeaderStyle()}`}>
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   <h3 className={`font-semibold ${isCompleted ? 'text-gray-500' : isSummer ? 'text-gray-600' : 'text-gray-800'}`}>{title}</h3>
@@ -973,36 +973,10 @@ import { useHoverTip } from './hoverTip.jsx';
       
       return (
         <div className="mb-8">
-          <div className="flex items-center gap-4 mb-4">
-            <div className={`px-4 py-2 rounded-xl flex items-center justify-center text-white shadow-lg ${
-              isYearCompleted 
-                ? 'bg-gray-400' 
-                : 'bg-gradient-to-r from-amber-500 to-orange-600'
-            }`}>
-              {isYearCompleted ? (
-                <div className="flex items-center gap-2">
-                  <span className="font-bold">Year {yearNum}</span>
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              ) : (
-                <span className="font-bold">Year {yearNum}</span>
-              )}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className={`text-xl font-bold ${isYearCompleted ? 'text-gray-500' : 'text-gray-800'}`}>
-                  {yearNum === 1 ? 'Freshman' : yearNum === 2 ? 'Sophomore' : yearNum === 3 ? 'Junior' : 'Senior'}
-                </h2>
-                {isYearCompleted && (
-                  <span className="px-2 py-0.5 text-xs font-semibold bg-gray-200 text-gray-600 rounded-full">
-                    Completed
-                  </span>
-                )}
-              </div>
-              <p className={`${isYearCompleted ? 'text-gray-400' : 'text-gray-500'}`}>{yearCredits} credits {isYearCompleted ? 'earned' : 'planned'}</p>
-            </div>
+          {/* Year banner: one line across the Fall, Spring and Summer columns */}
+          <div className="flex items-baseline gap-2 mb-4 px-5 py-[8px] rounded-xl bg-gradient-to-r from-amber-100/80 to-orange-100/60 border border-amber-200 shadow-sm">
+            <h2 className="text-xl font-bold text-gray-800">Year {yearNum}</h2>
+            <span className="text-gray-500">- {yearCredits} credits planned</span>
           </div>
           <div className="flex gap-4">
             <SemesterColumn 

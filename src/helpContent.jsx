@@ -287,6 +287,12 @@ export function FullHelp() {
             The <strong>BSBA Graduation Requirements</strong> bars fill as you tick
             courses complete. Transfer credit and Suffolk credit are shown in different shades.
           </li>
+          <li>
+            <strong>Courses that count twice.</strong> With two majors selected, up to two courses can count toward both
+            majors. Such a course lists both majors under its title, for example <em>ENT Major, elective</em> over
+            <em> IB Major, elective</em>, and takes the color of the major where it is required (or of the first major
+            if it is an elective in both).
+          </li>
           <li>Notes can appear on the page when something needs your attention, for example when a course counts toward more than one program.</li>
         </ul>
       </Section>

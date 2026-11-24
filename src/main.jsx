@@ -133,6 +133,17 @@ import { BrandBadge, BrandBlock } from './brand.jsx';
       return codes.map(code => ({ code, title: COURSE_TITLES[code] || "" }));
     };
 
+    // The text line(s) under a course title. A course that double counts for two programs shows one line for each,
+    // e.g. "ENT Major, elective" and, right under it, "IB Major, elective".
+    const categoryLines = (c) => {
+      const lines = [categoryText(c)];
+      if (c.dual && c.dual.program) {
+        const key = c.dual.program;
+        lines.push(`${key.slice(2)} ${key[0] === "M" ? "Major" : "Minor"}, ${c.dual.type.endsWith("Elective") ? "elective" : "required"}`);
+      }
+      return lines;
+    };
+
     const LockContext = React.createContext({ locks: {}, toggle: () => {} }); // semesters the student has locked
     const MoveContext = React.createContext(null); // lets a card ask the app to move it up/down within its semester
 
@@ -320,26 +331,42 @@ import { BrandBadge, BrandBlock } from './brand.jsx';
       // a streamlined-path rule, when one matches the selection, decides which course double counts
       const rule = STREAMLINED_PATHS.find(r => r.when.every(k => programs.some(p => p.key === k)));
       const ruleDc = rule ? { code: rule.code, A: programs.find(p => p.key === rule.A), B: programs.find(p => p.key === rule.B), kind: rule.roleB === "elective" ? "elec" : "req", roleA: rule.roleA } : null;
-      const dc = ruleDc || candidates[0] || null; // only ONE double count is allowed
-      const roleB = dc ? (dc.kind === "elec" ? "elective" : "required") : "";
-      const dcNote = dc ? `Counts toward: ${label(dc.A)} (${dc.roleA}) and ${label(dc.B)} (${roleB})` : "";
-      const markDual = (card) => { card.programs = [...(card.programs || []), dc.B.key]; card.dual = { type: dc.kind === "elec" ? elType(dc.B) : reqType(dc.B), rank: dc.B.rank, note: dcNote }; };
+      // A course can double count toward two programs. With two majors selected, up to TWO courses may double count;
+      // with one major, one. The streamlined-path rule (if any) is taken first, then the other overlaps in order.
+      const maxDc = majorIdxs.length >= 2 ? 2 : 1;
+      const dcs = [];
+      const useDc = (d) => {
+        if (!d || dcs.length >= maxDc || dcs.some(x => x.code === d.code)) return;
+        // a double count uses up one of B's elective slots, so B needs one left
+        if (d.kind === "elec" && dcs.filter(x => x.kind === "elec" && x.B === d.B).length >= d.B.tpl.slots.length) return;
+        dcs.push(d);
+      };
+      useDc(ruleDc);
+      candidates.forEach(useDc);
+      const roleBOf = (d) => (d.kind === "elec" ? "elective" : "required");
+      const dcNoteOf = (d) => `Counts toward: ${label(d.A)} (${d.roleA}) and ${label(d.B)} (${roleBOf(d)})`;
+      const markDual = (card, d) => {
+        if (!card) return;
+        if (!(card.programs || []).includes(d.B.key)) card.programs = [...(card.programs || []), d.B.key];
+        card.dual = { type: d.kind === "elec" ? elType(d.B) : reqType(d.B), rank: d.B.rank, program: d.B.key, note: dcNoteOf(d) };
+      };
 
       const claimed = {}, cardOf = {};
       programs.filter(p => p.base).forEach(p => p.tpl.req.forEach(([r]) => { claimed[r] = p; cardOf[r] = existing[r]; }));
       const entElectiveCards = () => cards().filter(c => c.type === "majorElective" && (c.programs || []).includes("M:ENT"));
-      if (dc && dc.A.base) {
-        if (dc.roleA === "required") markDual(existing[dc.code]);
-        else { // the double-counted course becomes the first elective of the generic ENT major
-          const first = entElectiveCards()[0];
-          if (first) { first.orig = { name: first.name, fullName: first.fullName }; first.name = dc.code; first.fullName = COURSE_TITLES[dc.code] || dc.code; markDual(first); }
+      const unusedEntElective = () => entElectiveCards().find(c => !c.dual && !c.orig); // an ENT elective not yet given a double count
+      dcs.filter(d => d.A.base).forEach(d => {
+        if (d.roleA === "required") markDual(existing[d.code], d);
+        else { // the double-counted course becomes one of the electives of the generic ENT major
+          const first = unusedEntElective();
+          if (first) { first.orig = { name: first.name, fullName: first.fullName }; first.name = d.code; first.fullName = COURSE_TITLES[d.code] || d.code; markDual(first, d); }
         }
-      }
-      // the double count frees one of B's elective slots: release the first ENT elective card if B is the generic ENT major
-      if (dc && dc.kind === "elec" && dc.B.base && !dc.A.base) {
-        const first = entElectiveCards()[0];
+      });
+      // each double count frees one of B's elective slots: release an ENT elective card if B is the generic ENT major
+      dcs.filter(d => d.kind === "elec" && d.B.base && !d.A.base).forEach(() => {
+        const first = unusedEntElective();
         if (first) { first.type = "elective"; first.programs = []; first.rank = undefined; first.name = "Free Elective"; first.fullName = "Any approved course"; }
-      }
+      });
 
       // Semesters that still have free elective slots, in chronological order
       const free = PLAN_SEMESTERS
@@ -359,14 +386,16 @@ import { BrandBadge, BrandBlock } from './brand.jsx';
         pr.tpl.req.forEach(([code, title, cr]) => {
           if (plain.has(code)) { existing[code].programs = [...(existing[code].programs || []), pr.key]; return; } // already in the plan (core)
           if (claimed[code]) {
-            if (dc && dc.kind === "req" && dc.code === code && dc.B === pr) { markDual(cardOf[code]); return; } // the one allowed double count
+            const dReq = dcs.find(d => d.kind === "req" && d.code === code && d.B === pr);
+            if (dReq) { markDual(cardOf[code], dReq); return; } // an allowed double count
             substitutes.push({ code, by: claimed[code], pr });
             reqItems.push({ id: `${pr.key}-sub-${code}`, name: "Substitute", fullName: `Replaces ${code} (already counted for ${label(claimed[code])})`, credits: cr, type: reqType(pr), programs: [pr.key], rank: pr.rank, taken: false, transferred: false });
             return;
           }
           const item = { id: `${pr.key}-${code}`, name: code, fullName: title, credits: cr, type: reqType(pr), programs: [pr.key], rank: pr.rank, taken: false, transferred: false };
           claimed[code] = pr; cardOf[code] = item;
-          if (dc && dc.kind === "elec" && dc.A === pr && dc.code === code) markDual(item);
+          const dElecA = dcs.find(d => d.kind === "elec" && d.A === pr && d.code === code);
+          if (dElecA) markDual(item, dElecA);
           reqItems.push(item);
         });
         const n = free.length, R = reqItems.length, K = Math.min(n, R);
@@ -375,11 +404,13 @@ import { BrandBadge, BrandBlock } from './brand.jsx';
           const count = Math.floor(R / K) + (sem < R % K ? 1 : 0);
           for (let j = 0; j < count; j++) place(reqItems[at++], sem);
         }
-        const nSlots = (dc && dc.kind === "elec" && dc.B === pr) ? pr.tpl.slots.length - 1 : pr.tpl.slots.length;
+        const nSlots = pr.tpl.slots.length - dcs.filter(d => d.kind === "elec" && d.B === pr).length;
+        const aElectives = dcs.filter(d => d.roleA === "elective" && d.A === pr);
         pr.tpl.slots.slice(0, nSlots).forEach((cr, i) => {
-          if (i === 0 && dc && dc.roleA === "elective" && dc.A === pr) { // streamlined path: the double-counted course is this program's first elective
-            const item = { id: `${pr.key}-${dc.code}`, name: dc.code, fullName: COURSE_TITLES[dc.code] || dc.code, credits: cr, type: elType(pr), programs: [pr.key], rank: pr.rank, taken: false, transferred: false };
-            markDual(item); place(item, 0); return;
+          if (aElectives[i]) { // streamlined path: a double-counted course is one of this program's electives
+            const d = aElectives[i];
+            const item = { id: `${pr.key}-${d.code}`, name: d.code, fullName: COURSE_TITLES[d.code] || d.code, credits: cr, type: elType(pr), programs: [pr.key], rank: pr.rank, taken: false, transferred: false };
+            markDual(item, d); place(item, i % Math.max(n, 1)); return;
           }
           place({ id: `${pr.key}-el${i + 1}`, name: `${pr.code} ${pr.kind === "major" ? "Elective" : "Minor Elective"}`,
             fullName: `${pr.kind === "major" ? "Major" : "Minor"} elective (${i + 1}/${pr.tpl.slots.length})`, credits: cr, type: elType(pr), programs: [pr.key], rank: pr.rank, taken: false, transferred: false },
@@ -392,10 +423,10 @@ import { BrandBadge, BrandBlock } from './brand.jsx';
       renumberFreeElectives(plan);
 
       const notes = [];
-      if (dc) {
-        notes.push(`Double count: ${dc.code} counts toward both the ${label(dc.A)} (${dc.roleA}) and the ${label(dc.B)} (${roleB}). Only one course may double count.`);
-        const others = candidates.slice(1).filter(c => c.code !== dc.code).map(c => `${c.code} (${label(c.A)} required / ${label(c.B)} ${c.kind === "elec" ? "elective" : "required"})`);
-        if (others.length) notes.push(`Other overlaps not applied (only one double count is allowed): ${[...new Set(others)].slice(0, 4).join(", ")}.`);
+      dcs.forEach(d => notes.push(`Double count: ${d.code} counts toward both the ${label(d.A)} (${d.roleA}) and the ${label(d.B)} (${roleBOf(d)}). Up to ${maxDc} course${maxDc > 1 ? "s" : ""} may double count.`));
+      if (dcs.length) {
+        const others = candidates.filter(c => !dcs.some(d => d.code === c.code)).map(c => `${c.code} (${label(c.A)} required / ${label(c.B)} ${c.kind === "elec" ? "elective" : "required"})`);
+        if (others.length) notes.push(`Other overlaps not applied (${maxDc > 1 ? `only ${maxDc} double counts are` : "only one double count is"} allowed): ${[...new Set(others)].slice(0, 4).join(", ")}.`);
       }
       substitutes.forEach(s => notes.push(`${s.code} is required by both the ${label(s.by)} and the ${label(s.pr)} but cannot double count again, so a substitute course is shown for the ${label(s.pr)}.`));
       if (overflow.length) {
@@ -503,12 +534,15 @@ import { BrandBadge, BrandBlock } from './brand.jsx';
       const toggleCompleted = React.useContext(CompletedContext);
       const toggleTransferredCard = React.useContext(TransferredContext);
       const gray = !!locked; // completed or locked: grayed out and not editable
-      const baseKey = styleKeyOf(course.type, course.rank);
+      // A course that double counts has ONE colour: that of the major where it is required, or, when it is an
+      // elective in both, that of the first major. Both programs are named in the text lines under the title.
+      const dualWins = !!course.dual && /Elective$/.test(course.type) && !/Elective$/.test(course.dual.type);
+      const baseKey = dualWins ? styleKeyOf(course.dual.type, course.dual.rank) : styleKeyOf(course.type, course.rank);
       const baseStyle = typeStyles[baseKey];
-      const dualKey = course.dual && !gray ? styleKeyOf(course.dual.type, course.dual.rank) : null;
-      const dualStyle = dualKey ? typeStyles[dualKey] : null; // the second requirement this course also meets
       const style = gray ? takenStyles : baseStyle;
-      
+      const showCategory = course.type !== "gened" && course.type !== "core"; // GenEd and SBS Core: colour and legend are enough
+      const categories = categoryLines(course);
+
       // For taken courses, use dull version of category color for course name
       const courseNameColor = gray ? baseStyle.textDull : baseStyle.text;
       
@@ -517,32 +551,34 @@ import { BrandBadge, BrandBlock } from './brand.jsx';
           draggable={!gray}
           onDragStart={(e) => !gray && onDragStart(e, course, yearKey, semester)}
           onDragEnd={onDragEnd}
-          title={dualStyle ? course.dual.note : undefined}
-          style={dualStyle ? { background: `linear-gradient(to right, ${STYLE_HEX[baseKey][0]} 0%, ${STYLE_HEX[baseKey][0]} 66.67%, ${STYLE_HEX[dualKey][0]} 66.67%, ${STYLE_HEX[dualKey][0]} 100%)` } : undefined}
-          className={`relative ${dualStyle ? '' : style.bg} ${style.border} border rounded-xl px-4 py-3 mb-2 flex justify-between items-center shadow-sm transition-all group ${
+          title={course.dual ? course.dual.note : undefined}
+          className={`relative ${style.bg} ${style.border} border rounded-xl px-3.5 py-2 mb-2 flex justify-between items-center shadow-sm transition-all group ${
             gray 
               ? 'cursor-default opacity-90' 
               : 'hover:shadow-md cursor-grab active:cursor-grabbing'
           } ${isDragging ? 'opacity-50 scale-95' : ''}`}
         >
-          {dualStyle && <div className="absolute top-0 bottom-0 pointer-events-none" style={{ left: "66.67%", width: 3, marginLeft: -1.5, background: STYLE_HEX[dualKey][1] }}></div>}
-          <div className="min-w-0 flex-1 relative" style={dualStyle ? { maxWidth: "62%" } : undefined}>
+          <div className="min-w-0 flex-1 relative">
             <div className="flex items-baseline gap-2 min-w-0">
               <span className={`font-semibold shrink-0 ${courseNameColor}`}>{course.name}</span>
               <span className={`truncate ${gray ? 'text-gray-400' : 'text-gray-500'}`} title={course.fullName}>{course.manual ? course.fullName : (SHORT_TITLES[course.name] || course.fullName)}</span>
             </div>
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-1 min-w-0">
               {/* GenEd and SBS Core are recognised by their colour and the legend, so they carry no category text */}
-              {course.type !== "gened" && course.type !== "core" && (
-                <span className={`text-xs truncate ${gray ? 'text-gray-300' : 'text-gray-400'}`} title={categoryText(course)}>{categoryText(course)}</span>
+              {showCategory && (
+                <span className={`flex flex-col min-w-0 text-xs leading-snug ${gray ? 'text-gray-300' : 'text-gray-400'}`}>
+                  {categories.map(line => <span key={line} className="truncate" title={line}>{line}</span>)}
+                </span>
               )}
               {hasSelection(course) && (
                 <button type="button" disabled={gray}
                   onClick={(e) => { e.stopPropagation(); openSelect && openSelect(e.currentTarget.getBoundingClientRect(), course.id, yearKey, semester); }}
-                  className="shrink-0 px-2 py-0.5 rounded-md border border-gray-300 bg-white/80 text-xs font-medium text-gray-600 hover:bg-white hover:text-gray-800 disabled:opacity-50 disabled:cursor-default">
+                  className="shrink-0 px-1.5 py-0.5 rounded-md border border-gray-300 bg-white/80 text-xs font-medium text-gray-600 hover:bg-white hover:text-gray-800 disabled:opacity-50 disabled:cursor-default">
                   Select
                 </button>
               )}
+              {/* the two check boxes stay together if the row has to wrap */}
+              <span className="shrink-0 inline-flex items-center gap-x-1.5">
               <label className={`shrink-0 inline-flex items-center gap-1 text-xs select-none ${gray || course.transferred ? 'text-gray-300' : 'text-gray-500 cursor-pointer'}`} title={course.transferred ? "Transfer credit counts as completed" : "Tick when the course is completed; its credits count toward your degree progress"}>
                 <input type="checkbox" checked={!!course.taken} disabled={gray || !!course.transferred}
                   onChange={() => toggleCompleted && toggleCompleted(yearKey, semester, course.id)}
@@ -555,11 +591,13 @@ import { BrandBadge, BrandBlock } from './brand.jsx';
                   className="w-3.5 h-3.5 rounded border-gray-300 accent-orange-500" />
                 Transferred
               </label>
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className={`text-lg font-bold relative ${dualStyle ? dualStyle.text : style.text}`}>
-              {course.credits}
+            <div className={`relative whitespace-nowrap ${style.text}`}>
+              <span className="text-lg font-bold">{course.credits}</span>
+              <span className="text-sm font-medium ml-1 opacity-80">{course.credits === 1 ? "credit" : "credits"}</span>
               {course.transferred && <span className="text-sm font-medium text-gray-400 ml-1">(T)</span>}
             </div>
             {!gray && move && (
@@ -1200,7 +1238,9 @@ import { BrandBadge, BrandBlock } from './brand.jsx';
           const toPdfCourse = (c) => ({
             code: c.name,
             title: c.manual ? c.fullName : (SHORT_TITLES[c.name] || c.fullName),
-            credits: c.credits, type: c.type, taken: !!c.taken, transferred: !!c.transferred,
+            // same colour rule as the cards on screen: a double-counting course takes the colour of the major where it is required
+            type: (c.dual && /Elective$/.test(c.type) && !/Elective$/.test(c.dual.type)) ? c.dual.type : c.type,
+            credits: c.credits, taken: !!c.taken, transferred: !!c.transferred,
           });
           makePlanPdf({
             planLabel: tabLabel(activeTab),
@@ -1349,8 +1389,8 @@ import { BrandBadge, BrandBlock } from './brand.jsx';
                     aria-label="Legend"
                     title="Legend: what the card colors and symbols mean"
                     className={`hidden lg:flex flex-1 min-w-0 items-center justify-between gap-x-1 gap-y-1 px-2 py-2 bg-gray-50 rounded-xl whitespace-nowrap ${
-                      // Two majors, two minors or a double-count notice add too many entries for one line: wrap those cases
-                      selectedMajors.length === 2 || selectedMinors.length === 2 || (activeTab.notice || "").includes("Double count") ? "flex-wrap" : "flex-nowrap overflow-hidden"
+                      // Two majors or two minors add too many entries for one line: wrap those cases
+                      selectedMajors.length === 2 || selectedMinors.length === 2 ? "flex-wrap" : "flex-nowrap overflow-hidden"
                     }`}
                   >
                     <div className="flex items-center gap-1">
@@ -1383,12 +1423,6 @@ import { BrandBadge, BrandBlock } from './brand.jsx';
                           <span className="text-[11px] text-gray-600">Major 2: {majors[selectedMajors[1]].code}</span>
                         </div>
                       </>
-                    )}
-                    {(activeTab.notice || "").includes("Double count") && (
-                      <div className="flex items-center gap-1">
-                        <div className="w-2.5 h-2.5 rounded" style={{ background: "linear-gradient(to right,#fb923c 66%,#2dd4bf 66%)" }}></div>
-                        <span className="text-[11px] text-gray-600">Double-counted</span>
-                      </div>
                     )}
                     {selectedMinors.length === 1 && (
                       <div className="flex items-center gap-1">

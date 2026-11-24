@@ -37,6 +37,25 @@ export function Disclaimer() {
   );
 }
 
+// Look-alikes of the "Select" button and the "Completed?" tick box on the course cards (same styling as the cards),
+// so students can recognize them in the quick-start steps. They are display only and cannot be clicked.
+function SelectButtonImage() {
+  return (
+    <span className="inline-block align-middle mx-0.5 px-2 py-0.5 rounded-md border border-gray-300 bg-white/80 text-xs font-medium text-gray-600 select-none">
+      Select
+    </span>
+  );
+}
+
+function CompletedBoxImage() {
+  return (
+    <span className="inline-flex items-center align-middle mx-0.5 gap-1 text-xs text-gray-500 select-none">
+      <input type="checkbox" tabIndex={-1} readOnly aria-hidden="true" className="pointer-events-none w-3.5 h-3.5 rounded border-gray-300 accent-orange-500" />
+      Completed?
+    </span>
+  );
+}
+
 const quickSteps = [
   {
     title: 'Pick your major(s) and minor(s)',
@@ -48,14 +67,14 @@ const quickSteps = [
   },
   {
     title: 'Choose specific courses',
-    text: 'Click Select on a card to pick a course from the list, or mark it Transferred. Some cards, such as Math or an elective, also let you type a course in.',
+    text: <>Click <SelectButtonImage /> on a card to pick a course from the list, or mark it Transferred. Some cards, such as Math or an elective, also let you type a course in.</>,
   },
   {
     title: 'Mark what you have finished',
-    text: 'Tick "Completed?" on finished courses and they count toward your Degree Progress. Lock a semester when it is final.',
+    text: <>Tick <CompletedBoxImage /> on finished courses and they count toward your Degree Progress. Lock a semester when it is final.</>,
   },
   {
-    title: 'Watch your credits',
+    title: 'Watch your credits per semester',
     text: 'Regular tuition covers up to 17 credits in a semester. Credits over 17 cost extra, and 21 is the maximum.',
   },
 ];

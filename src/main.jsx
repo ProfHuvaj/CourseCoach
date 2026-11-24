@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import { HelpModal } from './helpContent.jsx';
+import { BrandBadge, BrandBlock } from './brand.jsx';
 
     const initialCourseData = {
       year1: {
@@ -1337,14 +1338,9 @@ import { HelpModal } from './helpContent.jsx';
           <header className="bg-white/80 backdrop-blur-lg border-b border-gray-200 sticky top-0 z-50">
             <div className="max-w-7xl mx-auto px-6 lg:pr-[41px] py-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4 flex-shrink-0">
-                  <div className="h-12 px-3 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-bold text-base tracking-tight shadow-lg flex-shrink-0">
-                    CouCoa
-                  </div>
-                  <div>
-                    <h1 className="text-2xl font-bold text-gray-900 serif">CourseCoach</h1>
-                    <p className="text-[11px] leading-snug text-gray-500 whitespace-nowrap">Suffolk University<br />Sawyer Business School</p>
-                  </div>
+                <div className="flex items-stretch gap-3 flex-shrink-0">
+                  <BrandBadge />
+                  <BrandBlock asHeading />
                 </div>
                 <div className="flex flex-1 items-center justify-end gap-3 min-w-0 ml-4">
                   {/* Legend: one line, fills the space between the title and the student details */}

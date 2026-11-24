@@ -205,7 +205,7 @@ export function FullHelp() {
           <li><strong>Selected Major(s) and Selected Minor(s).</strong> Choose up to two of each. A major always stays selected.</li>
           <li><strong>Degree Progress.</strong> Shows how many of the 124 credits you have completed. It sits in the Overview box with your major and minor choices.</li>
           <li><strong>BSBA Graduation Requirements.</strong> Bars for General Education, SBS Core, your major and free electives, split into transfer credit, Suffolk credit, and what remains.</li>
-          <li><strong>Plans.</strong> Switch between plan tabs, or view all years or just one.</li>
+          <li><strong>Plans.</strong> Switch between plan tabs, or view all years or just one. The purple <em>Print</em> button, on the right of the year buttons, saves the plan in the current tab as a one-page PDF. Use it on each tab to print the plans and compare them side by side.</li>
           <li><strong>The four-year plan.</strong> Each year has a Fall and a Spring column of course cards, plus a Summer tab you can open when you need it.</li>
         </ul>
         <p>On wider screens, a legend in the header explains the card colors, and a menu on the left jumps to each section and each year.</p>

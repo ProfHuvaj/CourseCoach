@@ -1173,6 +1173,44 @@ import { HelpModal } from './helpContent.jsx';
       const totalPlannedCredits = allCourses.reduce((sum, c) => sum + c.credits, 0);
       const progress = Math.round((completedCredits / 124) * 100);
 
+      // Print: save the plan in the CURRENT tab as a one-page PDF. The PDF code is only downloaded when this is first used.
+      const [printing, setPrinting] = useState(false);
+      const printPlan = async () => {
+        setPrinting(true);
+        try {
+          const { makePlanPdf } = await import("./planPdf.js");
+          const yearNames = ["Freshman", "Sophomore", "Junior", "Senior"];
+          const toPdfCourse = (c) => ({
+            code: c.name,
+            title: c.manual ? c.fullName : (SHORT_TITLES[c.name] || c.fullName),
+            credits: c.credits, type: c.type, taken: !!c.taken, transferred: !!c.transferred,
+          });
+          makePlanPdf({
+            planLabel: tabLabel(activeTab),
+            majors: activeTab.majors.map(i => majors[i].name),
+            minors: activeTab.minors.map(i => minors[i].name),
+            studentName: studentName.trim() === DEFAULT_NAME ? "" : studentName.trim(),
+            startTerm, gradTerm,
+            totalCredits: totalPlannedCredits, completedCredits, progress,
+            notes: activeTab.notice ? activeTab.notice.split("\n") : [],
+            url: "https://profhuvaj.github.io/CourseCoach/",
+            years: [1, 2, 3, 4].map(n => {
+              const y = courseData[`year${n}`];
+              return {
+                number: n, label: yearNames[n - 1],
+                credits: Object.values(y).flat().reduce((s, c) => s + c.credits, 0),
+                semesters: { fall: y.fall.map(toPdfCourse), spring: y.spring.map(toPdfCourse), summer: y.summer.map(toPdfCourse) },
+                locked: { fall: !!locks[`year${n}.fall`], spring: !!locks[`year${n}.spring`], summer: !!locks[`year${n}.summer`] },
+              };
+            }),
+          });
+        } catch (err) {
+          console.error(err);
+          window.alert("Sorry, the PDF could not be created. Please try again.");
+        }
+        setPrinting(false);
+      };
+
       const sumCredits = (pred) => allCourses.filter(pred).reduce((sum, c) => sum + c.credits, 0);
       const isMajorType = (c) => c.type === "major" || c.type === "majorElective";
       const isMinorType = (c) => c.type === "minor" || c.type === "minorElective";
@@ -1629,6 +1667,22 @@ import { HelpModal } from './helpContent.jsx';
                   Year {year}
                 </button>
               ))}
+              {/* Print: saves the plan in the current tab as a one-page PDF */}
+              <button
+                type="button"
+                onClick={printPlan}
+                disabled={printing}
+                aria-label="Save this plan as a one-page PDF"
+                title="Save this plan as a one-page PDF"
+                className="ml-auto flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-purple-800 shadow-md hover:from-purple-700 hover:to-purple-900 disabled:opacity-60 disabled:cursor-wait transition-all"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                  <polyline points="6 9 6 2 18 2 18 9" />
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                  <rect x="6" y="14" width="12" height="8" />
+                </svg>
+                {printing ? "Preparing…" : "Print"}
+              </button>
             </div>
 
             {/* Year Rows */}

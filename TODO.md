@@ -10,6 +10,7 @@ Tasks to come back to later. Tick them off as you finish.
 - [ ] **! add a prominent privacy and indemnification notice that needs to be clicked to proceed !**
 - [ ] **links to majors' current curricula on the Suffolk web page (catalogue) that are bookmarked in my advising browser folder on Chrome**
 - [ ] **Add a print/export button which would export the plan in the current tab as a *.docx file**
+- [ ] **Provide the template for the one-page printout.** The purple Print button already saves the current tab's plan as a one-page PDF (US Letter, landscape) using a first-draft layout. Send me your template and I will rebuild the layout to match it. The layout lives in one file, `src/planPdf.js`.
 
 ## Housekeeping reminders
 

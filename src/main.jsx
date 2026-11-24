@@ -546,23 +546,23 @@ import { HelpModal } from './helpContent.jsx';
       if (!menu || !course) return null;
       const list = menuCourses(course);
       const below = menu.rect.bottom + 300 < window.innerHeight;
-      const pos = { left: Math.max(8, Math.min(menu.rect.left, window.innerWidth - 328)), ...(below ? { top: menu.rect.bottom + 4 } : { bottom: window.innerHeight - menu.rect.top + 4 }) };
+      const pos = { left: Math.max(8, Math.min(menu.rect.left, window.innerWidth - 392)), ...(below ? { top: menu.rect.bottom + 4 } : { bottom: window.innerHeight - menu.rect.top + 4 }) };
       return ReactDOM.createPortal(
         <div className="fixed inset-0 z-50" onClick={onClose}>
           <div role="menu" onClick={(e) => e.stopPropagation()} style={pos}
-            className="fixed w-80 max-h-72 overflow-y-auto bg-white rounded-xl border border-gray-200 shadow-xl py-1 text-sm">
+            className="menu-font fixed w-96 max-h-72 overflow-y-auto bg-white rounded-xl border border-gray-200 shadow-xl py-1 text-[15px]">
             <button type="button" role="menuitem" onClick={onReset}
               className="w-full flex items-center gap-2 px-3 py-2 text-left font-medium text-gray-800 hover:bg-gray-50">
-              <span className="w-4 text-center">{!course.orig && !(course.transferred && course.takenBefore !== undefined) ? "\u2713" : ""}</span>Select
+              <span className="w-4 shrink-0 text-center">{!course.orig && !(course.transferred && course.takenBefore !== undefined) ? "\u2713" : ""}</span>Select
             </button>
             <button type="button" role="menuitemcheckbox" aria-checked={!!course.transferred} onClick={onTransferred}
               className="w-full flex items-center gap-2 px-3 py-2 text-left font-medium text-gray-800 hover:bg-gray-50">
-              <span className="w-4 text-center">{course.transferred ? "\u2713" : ""}</span>Transferred
+              <span className="w-4 shrink-0 text-center">{course.transferred ? "\u2713" : ""}</span>Transferred
             </button>
             {!manual ? (
               <button type="button" role="menuitem" onClick={() => { setMCode(course.manual ? course.name : ""); setMTitle(course.manual ? course.fullName : ""); setManual(true); }}
                 className="w-full flex items-center gap-2 px-3 py-2 text-left font-medium text-gray-800 hover:bg-gray-50">
-                <span className="w-4 text-center">{course.manual ? "\u2713" : ""}</span>Enter manually…
+                <span className="w-4 shrink-0 text-center">{course.manual ? "\u2713" : ""}</span>Enter manually…
               </button>
             ) : (
               <form className="px-3 py-2 space-y-2 bg-gray-50 border-y border-gray-100"
@@ -583,9 +583,9 @@ import { HelpModal } from './helpContent.jsx';
               return (
                 <button key={it.code} type="button" role="menuitem" disabled={used} onClick={() => onChoose(it)}
                   className={`w-full flex items-baseline gap-2 px-3 py-1.5 text-left ${used ? 'text-gray-300 cursor-default' : 'text-gray-700 hover:bg-gray-50'}`}>
-                  <span className="w-4 text-center text-gray-500">{current ? "\u2713" : ""}</span>
-                  <span className="font-semibold shrink-0">{it.code}</span>
-                  <span className="truncate" title={it.title}>{it.title}</span>
+                  <span className="w-4 shrink-0 text-center text-gray-500">{current ? "\u2713" : ""}</span>
+                  <span className="font-semibold shrink-0 text-left" style={{ width: "10.5ch" }}>{it.code}</span>
+                  <span className="truncate text-left min-w-0" title={it.title}>{it.title}</span>
                 </button>
               );
             })}

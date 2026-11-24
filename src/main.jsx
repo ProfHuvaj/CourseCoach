@@ -94,8 +94,30 @@ import { HelpModal } from './helpContent.jsx';
       const key = (c.programs && c.programs[0]) || (c.type.startsWith("major") ? "M:ENT" : "m:");
       return `${key.slice(2)} ${key[0] === "M" ? "Major" : "Minor"}, ${c.type.endsWith("Elective") ? "elective" : "required"}`;
     };
+    // "Enter manually" is only for boxes where the student has to supply a course: GenEd areas such as Math, SCGP, CI
+    // and STE, electives, minors and open "Advanced Course" slots. A box that already names one specific course in the
+    // GenEd, SBS Core or major curriculum (WRI-101, SBS-100, ENT-201 ...) is fixed. The test looks at the box's ORIGINAL
+    // name, so a flexible box stays flexible after the student has typed a course into it.
+    const SPECIFIC_CODE = /^[A-Z]+-\d{3}[A-Z]?$/;
+    const allowsManualEntry = (c) => {
+      if (c.id === "bizarea") return false; // picks one of three listed courses, or is set by the major
+      if (!["gened", "core", "major"].includes(c.type)) return true;
+      return !SPECIFIC_CODE.test(c.orig ? c.orig.name : c.name);
+    };
+
+    // SBS Core "Business Area": the student picks one of three courses, unless the major names one.
+    // Edit this table if a department's rule changes (major code -> required Business Area course).
+    const BIZ_AREA_OPTIONS = ["EC-102", "ACCT-202", "ISOM-319"];
+    const BIZ_AREA_BY_MAJOR = {
+      ECON: "EC-102",   // Business Economics
+      ACCT: "ACCT-202", // Accounting
+      BAIS: "ISOM-319", // Business Analytics & Information Systems (Information Systems and Operations Management)
+      SCM: "ISOM-319",  // Supply Chain Management (Information Systems and Operations Management)
+    };
+
     // Courses that can be picked for a box: the program's required courses, or its elective list
     const menuCourses = (c) => {
+      if (c.id === "bizarea") return c.mandated ? [] : BIZ_AREA_OPTIONS.map(code => ({ code, title: COURSE_TITLES[code] || "" }));
       if (!["major", "majorElective", "minor", "minorElective"].includes(c.type)) return [];
       const key = (c.programs && c.programs[0]) || "M:ENT";
       let codes;
@@ -258,6 +280,13 @@ import { HelpModal } from './helpContent.jsx';
           else { c.type = "elective"; c.name = "Free Elective"; c.fullName = "Any approved course"; }
         }
       });
+      // A selected major may name the Business Area course (the first such major selected decides).
+      // It is set before the plan is built so the major's own copy of that course attaches to this SBS Core box.
+      const bizCourse = majorCodes.map(code => BIZ_AREA_BY_MAJOR[code]).find(Boolean);
+      if (bizCourse) {
+        const biz = cards().find(c => c.id === "bizarea");
+        if (biz) { biz.name = bizCourse; biz.fullName = COURSE_TITLES[bizCourse] || bizCourse; biz.mandated = true; }
+      }
       const existing = {};
       cards().forEach(c => { existing[c.name] = c; });
       const plain = new Set(Object.keys(existing).filter(k => !(existing[k].programs || []).length)); // GenEd / SBS Core / free electives
@@ -545,6 +574,7 @@ import { HelpModal } from './helpContent.jsx';
       }, []);
       if (!menu || !course) return null;
       const list = menuCourses(course);
+      const canEnterManually = allowsManualEntry(course);
       const below = menu.rect.bottom + 300 < window.innerHeight;
       const pos = { left: Math.max(8, Math.min(menu.rect.left, window.innerWidth - 392)), ...(below ? { top: menu.rect.bottom + 4 } : { bottom: window.innerHeight - menu.rect.top + 4 }) };
       return ReactDOM.createPortal(
@@ -559,7 +589,7 @@ import { HelpModal } from './helpContent.jsx';
               className="w-full flex items-center gap-2 px-3 py-2 text-left font-medium text-gray-800 hover:bg-gray-50">
               <span className="w-4 shrink-0 text-center">{course.transferred ? "\u2713" : ""}</span>Transferred
             </button>
-            {!manual ? (
+            {!canEnterManually ? null : !manual ? (
               <button type="button" role="menuitem" onClick={() => { setMCode(course.manual ? course.name : ""); setMTitle(course.manual ? course.fullName : ""); setManual(true); }}
                 className="w-full flex items-center gap-2 px-3 py-2 text-left font-medium text-gray-800 hover:bg-gray-50">
                 <span className="w-4 shrink-0 text-center">{course.manual ? "\u2713" : ""}</span>Enter manually…
@@ -589,7 +619,7 @@ import { HelpModal } from './helpContent.jsx';
                 </button>
               );
             })}
-            {list.length === 0 && <div className="px-3 py-1.5 text-xs text-gray-400">No course list for this category</div>}
+            {list.length === 0 && canEnterManually && <div className="px-3 py-1.5 text-xs text-gray-400">No course list for this category</div>}
           </div>
         </div>, document.body);
     };

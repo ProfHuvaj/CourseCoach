@@ -49,8 +49,8 @@ function SelectButtonImage() {
 
 function CompletedBoxImage() {
   return (
-    <span className="inline-flex items-center align-middle mx-0.5 gap-1 text-xs text-gray-500 select-none">
-      <input type="checkbox" tabIndex={-1} readOnly aria-hidden="true" className="pointer-events-none w-3.5 h-3.5 rounded border-gray-300 accent-orange-500" />
+    <span className="inline-flex items-center align-middle mx-0.5 gap-1 text-xs text-gray-400 select-none">
+      <input type="checkbox" tabIndex={-1} readOnly aria-hidden="true" className="cc-check pointer-events-none" />
       Completed?
     </span>
   );
@@ -58,8 +58,8 @@ function CompletedBoxImage() {
 
 function TransferredBoxImage() {
   return (
-    <span className="inline-flex items-center align-middle mx-0.5 gap-1 text-xs text-gray-500 select-none">
-      <input type="checkbox" tabIndex={-1} readOnly aria-hidden="true" className="pointer-events-none w-3.5 h-3.5 rounded border-gray-300 accent-orange-500" />
+    <span className="inline-flex items-center align-middle mx-0.5 gap-1 text-xs text-gray-400 select-none">
+      <input type="checkbox" tabIndex={-1} readOnly aria-hidden="true" className="cc-check pointer-events-none" />
       Transferred
     </span>
   );
@@ -213,7 +213,7 @@ export function FullHelp() {
         <ul className="list-disc pl-6 space-y-1">
           <li><strong>Selected Major(s) and Selected Minor(s).</strong> Choose up to two of each. A major always stays selected.</li>
           <li><strong>Degree Progress.</strong> Shows how many of the 124 credits you have completed. It sits in the Overview box with your major and minor choices.</li>
-          <li><strong>BSBA Graduation Requirements (min. 124 credits).</strong> One bar made of sections for General Education, SBS Core, your major(s), your minor(s) and Free Electives, left to right. Each section is as wide as its share of the credits, and its own bar fills with transfer credit, Suffolk credit, and what remains. Hover over a section to see its full name. A section that is too narrow shows less text, or none.</li>
+          <li><strong>BSBA Degree Requirements (min. 124 credits).</strong> One bar made of sections for General Education, SBS Core, your major(s), your minor(s) and Free Electives, left to right. Each section is as wide as its share of the credits, and its own bar fills with transfer credit, Suffolk credit, and what remains. Hover over a section to see its full name. A section that is too narrow shows less text, or none.</li>
           <li><strong>Plans.</strong> Switch between plan tabs, or view all years or just one. The purple <em>Print</em> button, on the right of the year buttons, saves the plan in the current tab as a one-page PDF. Use it on each tab to print the plans and compare them side by side.</li>
           <li><strong>The four-year plan.</strong> Each year has a Fall and a Spring column of course cards, plus a Summer tab you can open when you need it.</li>
         </ul>
@@ -266,7 +266,15 @@ export function FullHelp() {
           <li>
             <strong>Credit warning.</strong> Regular tuition covers up to and including 17 credits in a semester.
             Credits over 17 are billed extra. You cannot take more than 21 credits in a semester. If you drag a course
-            into a semester that would pass 21, the move is cancelled and a message explains why.
+            into a semester that would pass 21, the move is cancelled and a message explains why. Hover over the credit
+            total of a semester with more than 17 credits to read the Credit Warning.
+          </li>
+          <li>
+            <strong>Prerequisites.</strong> Some courses (for example SIB-429 and ENT-419) have prerequisites that must be
+            taken in an earlier semester. CourseCoach will not let you move a course before its prerequisites. If you
+            move a course into the same semester as one of its prerequisites, a window explains that this is not normally
+            allowed and that the student needs written approval from faculty or the SBS dean&apos;s office. The move is
+            then made and the course is shown in red. Hover over a red course to read the message again.
           </li>
           <li>
             <strong>Lock a semester.</strong> Click <em>Lock</em> beside a semester when it is final. It turns gray and
@@ -284,7 +292,7 @@ export function FullHelp() {
         <ul className="list-disc pl-6 space-y-2">
           <li>The <strong>Degree Progress</strong> ring shows the share of the 124 credits you have completed.</li>
           <li>
-            The sections of the <strong>BSBA Graduation Requirements</strong> bar fill as you tick
+            The sections of the <strong>BSBA Degree Requirements</strong> bar fill as you tick
             courses complete. Transfer credit (hatched) and Suffolk credit are shown differently.
           </li>
           <li>

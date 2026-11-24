@@ -85,6 +85,7 @@ import { HelpModal } from './helpContent.jsx';
     const COURSE_TITLES = {"ACCT-310": "International Business Accounting", "ACCT-415": "Not-For-Profit Accounting and Control", "ACCT-520": "Accounting Internship", "ACCT-550": "Special Topics", "SEED-383": "SEED Accounting Clinic", "ISOM-211": "Cloud Computing and Network Infrastructure", "ISOM-215": "Mobile App Development", "ISOM-230": "Big Data, Business Intelligence and Analytics", "ISOM-232": "Sports Analytics in Action!", "ISOM-240": "Data Privacy and Digital Forensics", "ISOM-260": "Artificial Intelligence for Business", "ISOM-313": "Business Systems Development", "ISOM-330": "Machine Learning for Business Analytics", "ISOM-340": "Cybersecurity Fundamentals", "ISOM-341": "Project Management for the Modern Organizations", "ISOM-360": "Building AI Agents for Business Applications", "ISOM-424": "Consulting Project", "ISOM-440": "ERP Systems and Intelligent Business Process Transformation", "ISOM-510": "Independent Study in Information Systems and Operations Management", "ISOM-550": "Special Topics", "EC-131": "Environmental Economics", "EC-141": "Development Economics", "EC-151": "Economic and Human Geography", "EC-261": "Behavioral Economics", "EC-311": "Intermediate Micro Theory", "EC-402": "Mathematical Economics", "EC-420": "Economics of Sports", "EC-421": "Public Finance", "EC-430": "International Trade Theory and Policy", "EC-442": "International Monetary Economics", "EC-443": "Economics of Cryptocurrencies And Blockchain Technology", "EC-445": "The Economics of the European Union", "EC-451": "AI-Powered Forecasting", "EC-460": "Game Theory", "EC-483": "Money, Banking and Financial Markets", "EC-503": "Internship in Economics", "EC-510": "Economics Independent Study", "ACCT-320": "Federal Taxation", "ACCT-430": "Accounting Information Systems", "ACCT-431": "Auditing and Assurance Services", "FIN-315": "Principles of Investments", "FIN-319": "Money and Capital Markets", "FIN-411": "Futures and Options", "FIN-413": "Investment Analysis and Portfolio Management", "FIN-419": "Applied Financial Strategy", "FIN-432": "Risk Management and Financial Institutions", "ENT-211": "The Sports Institute: Opportunities in the Sports Industry", "ENT-241": "Development Economics", "ENT-333": "Real Estate for Entrepreneurs", "ENT-336": "Family Business: The Family", "ENT-337": "Family Business: The Business", "ENT-350": "Social Entrepreneurship", "ENT-352": "Green and Sustainable Business", "ENT-353": "Corporate Entrepreneurship", "ENT-354": "Global Entrepreneurship", "ENT-355": "Design Thinking for Business", "ENT-367": "Franchising", "ENT-377": "Small Business Consulting", "ENT-399": "Technology Entrepreneurship", "ENT-510": "Entrepreneurship Independent Study", "ENT-521": "Entrepreneurship Internship", "ENT-550": "Special Topics", "MGT-305": "Negotiations", "SIB-550": "Global Travel Seminar", "SEED-380": "SEED Consulting Clinic", "SEED-381": "SEED Resource Acquisition Clinic", "SEED-382": "SEED Marketing and Communications", "SEED-384": "SEED Design Clinic", "FIN-313": "General Insurance", "FIN-317": "Real Estate Finance", "FIN-330": "Introduction to FinTech", "FIN-350": "Venture Capital and Private Equity", "FIN-401": "Practical Financial Planning", "FIN-409": "Securities Analysis", "FIN-410": "Analysis of Financial Statements", "FIN-415": "Capital Budgeting", "FIN-424": "Retirement and Estate Planning", "FIN-430": "The Blockchain Revolution", "FIN-445": "Quantitative Analysis and Trading of Financial Instruments", "FIN-475": "Case Studies in Financial Planning", "FIN-480": "Applied Quantitative Finance with Python and AI", "FIN-510": "Independent Study in Finance", "FIN-550": "Special Topics", "SIB-340": "Global Innovation", "SIB-400": "", "SIB-510": "", "SIB-520": "", "SIB-540": "", "BLE-317": "Managing in the Global Legal Environment", "BLE-325": "Global Business Ethics", "CJN-482": "", "FIN-417": "Multinational Financial Management", "MGT-313": "Global Human Resource Management", "MGT-322": "Managing Across Differences", "MGT-341": "Managing a Global Workforce", "MKT-421": "Global Marketing", "CJN-470": "", "POLS-310": "", "POLS-367": "", "POLS-382": "", "POLS-387": "", "POLS-389": "", "POLS-411": "", "POLS-463": "", "POLS-509": "", "SPAN-315": "", "MGT-310": "Applied Managerial Skills", "MGT-350": "Special Topics", "MGT-385": "Managing Difficult People at Work", "MGT-411": "Workplace Engagement, Power, and Voice", "MGT-520": "Management Internship", "HLTH-301": "Healthcare in the United States", "P.AD-325": "Nonprofit Management", "MKT-310": "Storytelling and Personal Brand Building", "MKT-315": "Integrated Marketing Communication", "MKT-360": "Event Marketing Practicum", "MKT-415": "Content and Influencer Marketing", "MKT-418": "Beyond the Click: Topics in Consumer Privacy and Well Being", "MKT-420": "Marketing for Entrepreneurs", "MKT-423": "Global Retail Strategy", "MKT-424": "Sports Partnership, Activation, and Engagement", "MKT-426": "Sports Marketing", "MKT-427": "Global Supply Chain Relationships", "MKT-428": "The Business of Sports and the Media", "MKT-429": "eSports and Gaming: Marketing Insights from the New Frontier", "MKT-440": "New Product Development", "MKT-442": "Brand Marketing", "MKT-444": "Social Media Marketing", "MKT-450": "Marketing with Generative AI", "MKT-456": "Digital Marketing Analytics", "MKT-499": "Customer Insights and Decision Making", "MKT-510": "Directed Study", "MKT-520": "Marketing Internship", "MKT-530": "Marketing Practicum", "MKT-550": "Special Topics", "ADPR-458": "Advanced Sports Public Relations", "CJN-302": "Sports Journalism", "EC-320": "Economics of Sports", "SPMT-410": "Advanced Topics in Sports Management", "SPMT-510": "Sports Management Independent Study", "SPMT-520": "Sports Management Internship", "SPMT-521": "Maine Celtics Internship", "SPMT-530": "Sports Management Practicum", "SPMT-550": "Special Topics", "ACCT-331": "Cost Accounting", "BLE-315": "Legal Lessons for Business Startups Organizations", "SCM-550": "Special Topics", "ACCT-202": "Accounting for Decision Making II", "ACCT-321": "Intermediate Accounting I", "ACCT-322": "Intermediate Accounting II", "ACCT-450": "Accounting Theory and Practice", "ISOM-130": "Introduction to Business Analytics", "ISOM-316": "Coding for Business", "ISOM-319": "Operations Management", "ISOM-323": "Database Management", "EC-312": "Intermediate Macro Theory", "EC-350": "Data Analytics for Economics and Business", "EC-432": "Managerial Economics", "EC-450": "Applied Econometrics", "EC-490": "Senior Seminar in Economics", "ACCT-440": "Corporate Accounting and Financial Management", "FIN-311": "Intermediate Finance", "ENT-201": "Creating Value", "ENT-319": "Measuring Value", "ENT-419": "Delivering Value", "SIB-101": "Globalization", "SIB-321": "Introduction to International Business", "SIB-419": "Global Business Theory and Practice", "Advanced Course 1": "Customized Program of Study (2+ disciplines)", "Advanced Course 2": "Customized Program of Study (2+ disciplines)", "Advanced Course 3": "Customized Program of Study (2+ disciplines)", "Advanced Course 4": "Customized Program of Study (2+ disciplines)", "Advanced Course 5": "Customized Program of Study (2+ disciplines)", "Advanced Course 6": "Customized Program of Study (2+ disciplines)", "MGT-360": "Leadership 360 Practicum", "MGT-419": "Management Consulting Project", "MKT-317": "Consumer Behavior", "MKT-320": "Marketing Research Methods and Tools in the Age of Generative AI", "MKT-322": "Marketing Analytics", "MKT-419": "Marketing Policies and Strategies", "BLE-324": "Sports Ethics & Law", "SPMT-419": "Sports Management Capstone", "ISOM-351": "Supply Chain Management", "SCM-520": "Supply Chain Management Internship", "EC-101": "Applied Microeconomics", "EC-102": "Global Macroeconomics", "STATS-250": "Applied Statistics", "EC-312 / EC-432": "Intermediate Macro Theory or Managerial Economics (choose 1)", "ENT-317": "Real Estate Development and Public Policy", "FIN-409 / FIN-413": "Securities Analysis or Investment Analysis and Portfolio Management (choose 1)", "FIN-430 / ISOM-215": "The Blockchain Revolution or Mobile App Development (choose 1)", "SIB-330": "Technical Innovation Strategy", "MGT-560": "Leadership Journey Experience", "HLTH-307": "Innovative Healthcare Models", "PAD-325": "Nonprofit Management", "PAD-330": "Fundraising for Nonprofits", "PAD-310": "Introduction to Public Service"};
     const SelectContext = React.createContext(null);
     const CompletedContext = React.createContext(null); // toggles a box's "Completed?" check box // opens a card's "Select" menu
+    const TransferredContext = React.createContext(null); // toggles a box's "Transferred" check box
 
     // Category text shown on each course box, e.g. "ENT Major, required"
     const categoryText = (c) => {
@@ -104,6 +105,11 @@ import { HelpModal } from './helpContent.jsx';
       if (!["gened", "core", "major"].includes(c.type)) return true;
       return !SPECIFIC_CODE.test(c.orig ? c.orig.name : c.name);
     };
+
+    // A box gets a "Select" button only when there is something to select: a course to type in or pick from a list.
+    // Boxes that name one specific course (MGT-217, WRI-101, ENT-201 ...) have nothing to select; they only have the
+    // "Completed?" and "Transferred" check boxes.
+    const hasSelection = (c) => allowsManualEntry(c) || (c.id === "bizarea" && !c.mandated);
 
     // SBS Core "Business Area": the student picks one of three courses, unless the major names one.
     // Edit this table if a department's rule changes (major code -> required Business Area course).
@@ -269,7 +275,7 @@ import { HelpModal } from './helpContent.jsx';
     // elective list); it is shown as a two-colour card and the other program needs one course fewer.
     const buildPlan = (majorIdxs, minorIdxs) => {
       const plan = JSON.parse(JSON.stringify(initialCourseData));
-      Object.values(plan).forEach(y => Object.values(y).forEach(l => l.forEach(c => { c.taken = false; }))); // nothing is completed until the student ticks "Completed?"
+      Object.values(plan).forEach(y => Object.values(y).forEach(l => l.forEach(c => { c.taken = false; c.transferred = false; }))); // nothing is completed or transferred until the student ticks the boxes
       const cards = () => Object.values(plan).flatMap(y => Object.values(y).flat());
       const majorCodes = majorIdxs.map(i => majors[i].code);
 
@@ -494,6 +500,7 @@ import { HelpModal } from './helpContent.jsx';
       const move = React.useContext(MoveContext);
       const openSelect = React.useContext(SelectContext);
       const toggleCompleted = React.useContext(CompletedContext);
+      const toggleTransferredCard = React.useContext(TransferredContext);
       const gray = !!locked; // completed or locked: grayed out and not editable
       const baseKey = styleKeyOf(course.type, course.rank);
       const baseStyle = typeStyles[baseKey];
@@ -524,17 +531,28 @@ import { HelpModal } from './helpContent.jsx';
               <span className={`truncate ${gray ? 'text-gray-400' : 'text-gray-500'}`} title={course.fullName}>{course.manual ? course.fullName : (SHORT_TITLES[course.name] || course.fullName)}</span>
             </div>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 min-w-0">
-              <span className={`text-xs truncate ${gray ? 'text-gray-300' : 'text-gray-400'}`} title={categoryText(course)}>{categoryText(course)}</span>
-              <button type="button" disabled={gray}
-                onClick={(e) => { e.stopPropagation(); openSelect && openSelect(e.currentTarget.getBoundingClientRect(), course.id, yearKey, semester); }}
-                className="shrink-0 px-2 py-0.5 rounded-md border border-gray-300 bg-white/80 text-xs font-medium text-gray-600 hover:bg-white hover:text-gray-800 disabled:opacity-50 disabled:cursor-default">
-                Select
-              </button>
-              <label className={`shrink-0 inline-flex items-center gap-1 text-xs select-none ${gray ? 'text-gray-300' : 'text-gray-500 cursor-pointer'}`} title="Tick when the course is completed; its credits count toward your degree progress">
-                <input type="checkbox" checked={!!course.taken} disabled={gray}
+              {/* GenEd and SBS Core are recognised by their colour and the legend, so they carry no category text */}
+              {course.type !== "gened" && course.type !== "core" && (
+                <span className={`text-xs truncate ${gray ? 'text-gray-300' : 'text-gray-400'}`} title={categoryText(course)}>{categoryText(course)}</span>
+              )}
+              {hasSelection(course) && (
+                <button type="button" disabled={gray}
+                  onClick={(e) => { e.stopPropagation(); openSelect && openSelect(e.currentTarget.getBoundingClientRect(), course.id, yearKey, semester); }}
+                  className="shrink-0 px-2 py-0.5 rounded-md border border-gray-300 bg-white/80 text-xs font-medium text-gray-600 hover:bg-white hover:text-gray-800 disabled:opacity-50 disabled:cursor-default">
+                  Select
+                </button>
+              )}
+              <label className={`shrink-0 inline-flex items-center gap-1 text-xs select-none ${gray || course.transferred ? 'text-gray-300' : 'text-gray-500 cursor-pointer'}`} title={course.transferred ? "Transfer credit counts as completed" : "Tick when the course is completed; its credits count toward your degree progress"}>
+                <input type="checkbox" checked={!!course.taken} disabled={gray || !!course.transferred}
                   onChange={() => toggleCompleted && toggleCompleted(yearKey, semester, course.id)}
                   className="w-3.5 h-3.5 rounded border-gray-300 accent-orange-500" />
                 Completed?
+              </label>
+              <label className={`shrink-0 inline-flex items-center gap-1 text-xs select-none ${gray ? 'text-gray-300' : 'text-gray-500 cursor-pointer'}`} title="Tick if you earned the credit at another institution. Transfer credit also counts as completed">
+                <input type="checkbox" checked={!!course.transferred} disabled={gray}
+                  onChange={() => toggleTransferredCard && toggleTransferredCard(yearKey, semester, course.id)}
+                  className="w-3.5 h-3.5 rounded border-gray-300 accent-orange-500" />
+                Transferred
               </label>
             </div>
           </div>
@@ -562,8 +580,8 @@ import { HelpModal } from './helpContent.jsx';
       );
     };
 
-    // Pop-up menu for a course box's "Select" button: Transferred, then the courses for the box's category
-    const CourseMenu = ({ menu, course, usedNames, onClose, onReset, onEnter, onTransferred, onChoose }) => {
+    // Pop-up menu for a course box's "Select" button: reset, manual entry where allowed, then the courses for the box's category
+    const CourseMenu = ({ menu, course, usedNames, onClose, onReset, onEnter, onChoose }) => {
       const [manual, setManual] = useState(false);
       const [mCode, setMCode] = useState("");
       const [mTitle, setMTitle] = useState("");
@@ -583,11 +601,7 @@ import { HelpModal } from './helpContent.jsx';
             className="menu-font fixed w-96 max-h-72 overflow-y-auto bg-white rounded-xl border border-gray-200 shadow-xl py-1 text-[15px]">
             <button type="button" role="menuitem" onClick={onReset}
               className="w-full flex items-center gap-2 px-3 py-2 text-left font-medium text-gray-800 hover:bg-gray-50">
-              <span className="w-4 shrink-0 text-center">{!course.orig && !(course.transferred && course.takenBefore !== undefined) ? "\u2713" : ""}</span>Select
-            </button>
-            <button type="button" role="menuitemcheckbox" aria-checked={!!course.transferred} onClick={onTransferred}
-              className="w-full flex items-center gap-2 px-3 py-2 text-left font-medium text-gray-800 hover:bg-gray-50">
-              <span className="w-4 shrink-0 text-center">{course.transferred ? "\u2713" : ""}</span>Transferred
+              <span className="w-4 shrink-0 text-center">{!course.orig ? "\u2713" : ""}</span>Select
             </button>
             {!canEnterManually ? null : !manual ? (
               <button type="button" role="menuitem" onClick={() => { setMCode(course.manual ? course.name : ""); setMTitle(course.manual ? course.fullName : ""); setManual(true); }}
@@ -1057,19 +1071,21 @@ import { HelpModal } from './helpContent.jsx';
           return next;
         });
       };
-      const toggleTransferred = () => {
-        updateCard(c => c.transferred
-          ? { ...c, transferred: false, taken: !!c.takenBefore, takenBefore: undefined }
-          : { ...c, transferred: true, takenBefore: c.taken, taken: true });
-        setMenu(null);
-      };
-      // "Select": back to the initial format (no chosen course, no user-set Transferred)
-      const resetCourse = () => {
-        updateCard(c => {
-          let n = c.orig ? { ...c, ...c.orig, orig: undefined, manual: undefined } : { ...c };
-          if (n.transferred && n.takenBefore !== undefined) n = { ...n, transferred: false, taken: !!n.takenBefore, takenBefore: undefined };
-          return n;
+      // "Transferred" check box: transfer credit also counts as completed. Unticking goes back to the earlier Completed state.
+      const toggleTransferredCard = (yearKey, semester, id) => {
+        if (locks[`${yearKey}.${semester}`]) return;
+        setCourseData(prev => {
+          const next = JSON.parse(JSON.stringify(prev));
+          const c = next[yearKey][semester].find(x => x.id === id);
+          if (!c) return prev;
+          if (c.transferred) { c.transferred = false; c.taken = !!c.takenBefore; delete c.takenBefore; }
+          else { c.transferred = true; c.takenBefore = c.taken; c.taken = true; }
+          return next;
         });
+      };
+      // "Select": back to the initial format (no chosen course). Completed and Transferred are left as they are.
+      const resetCourse = () => {
+        updateCard(c => (c.orig ? { ...c, ...c.orig, orig: undefined, manual: undefined } : { ...c }));
         setMenu(null);
       };
       const enterCourse = (code, title) => {
@@ -1688,6 +1704,7 @@ import { HelpModal } from './helpContent.jsx';
             {/* Year Rows */}
             <LockContext.Provider value={{ locks, toggle: toggleLock }}>
             <CompletedContext.Provider value={toggleCompleted}>
+            <TransferredContext.Provider value={toggleTransferredCard}>
             <SelectContext.Provider value={(rect, id, yearKey, semester) => setMenu({ rect, id, yearKey, semester })}>
             <MoveContext.Provider value={moveCourse}>
             {activeYear === null && (
@@ -1715,8 +1732,9 @@ import { HelpModal } from './helpContent.jsx';
             </div>
             </MoveContext.Provider>
             </SelectContext.Provider>
+            </TransferredContext.Provider>
             </CompletedContext.Provider>
-            <CourseMenu menu={menu} course={menuCourse} usedNames={usedNames} onClose={() => setMenu(null)} onEnter={enterCourse} onReset={resetCourse} onTransferred={toggleTransferred} onChoose={chooseCourse} />
+            <CourseMenu menu={menu} course={menuCourse} usedNames={usedNames} onClose={() => setMenu(null)} onEnter={enterCourse} onReset={resetCourse} onChoose={chooseCourse} />
             </LockContext.Provider>
             </section>
           </main>

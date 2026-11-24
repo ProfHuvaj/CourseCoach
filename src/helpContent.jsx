@@ -56,6 +56,15 @@ function CompletedBoxImage() {
   );
 }
 
+function TransferredBoxImage() {
+  return (
+    <span className="inline-flex items-center align-middle mx-0.5 gap-1 text-xs text-gray-500 select-none">
+      <input type="checkbox" tabIndex={-1} readOnly aria-hidden="true" className="pointer-events-none w-3.5 h-3.5 rounded border-gray-300 accent-orange-500" />
+      Transferred
+    </span>
+  );
+}
+
 const quickSteps = [
   {
     title: 'Pick your major(s) and minor(s)',
@@ -67,11 +76,11 @@ const quickSteps = [
   },
   {
     title: 'Choose specific courses',
-    text: <>Click <SelectButtonImage /> on a card to pick a course from the list, or mark it Transferred. Some cards, such as Math or an elective, also let you type a course in.</>,
+    text: <>Cards that have a <SelectButtonImage /> button, such as an elective, let you pick a course from a list. Some, such as Math, let you type a course in. Courses the curriculum names exactly have nothing to select.</>,
   },
   {
     title: 'Mark what you have finished',
-    text: <>Tick <CompletedBoxImage /> on finished courses and they count toward your Degree Progress. Lock a semester when it is final.</>,
+    text: <>Tick <CompletedBoxImage /> on finished courses and they count toward your Degree Progress. Tick <TransferredBoxImage /> if you earned the credit at another institution (it counts as completed). Lock a semester when it is final.</>,
   },
   {
     title: 'Watch your credits per semester',
@@ -221,24 +230,29 @@ export function FullHelp() {
       </Section>
 
       <Section id="courses" title="Working with courses">
-        <p>Each card shows the course code, its title, what kind of requirement it fills, and its credits.</p>
+        <p>Each card shows the course code, its title and its credits. The card's color tells you what kind of requirement it fills (General Education, SBS Core, major, elective); the legend at the top of the page explains the colors.</p>
         <ul className="list-disc pl-6 space-y-2">
           <li>
             <strong>Move a course.</strong> Drag the card to another semester, or use the small up and down arrows on
             the card to change its order within a semester.
           </li>
           <li>
-            <strong>Select.</strong> Click <em>Select</em> on a card to open a menu. Choose a course from the list (for
-            categories that have one), or choose <em>Transferred</em> if you earned the credit elsewhere. Cards where
-            you decide the course, such as Math, other General Education areas and electives, also offer
-            <em> Enter manually…</em> so you can type your own course code and title. Courses the curriculum names
-            exactly, such as WRI-101 or SBS-100, are fixed, so they have no manual entry. The SBS Core
-            <em> Business Area</em> card lets you pick EC-102, ACCT-202 or ISOM-319, unless your major requires one of
-            them. Choose <em>Select</em> again to put a card back as it was.
+            <strong>Select.</strong> Only cards where you decide the course have a <em>Select</em> button: Math and the
+            other General Education areas, electives, and the SBS Core <em>Business Area</em> card. Click it to open a
+            menu. Choose a course from the list (for categories that have one), or choose <em>Enter manually…</em> to
+            type your own course code and title. <em>Business Area</em> lets you pick EC-102, ACCT-202 or ISOM-319,
+            unless your major requires one of them. Courses the curriculum names exactly, such as WRI-101, SBS-100 or
+            MGT-217, are fixed, so they have no Select button. Choose <em>Select</em> in the menu again to put a card
+            back as it was.
           </li>
           <li>
             <strong>Completed?</strong> Tick the box when you have finished the course. Its credits then count toward
-            your degree progress. Courses marked <em>Transferred</em> show (T) and count as completed.
+            your degree progress.
+          </li>
+          <li>
+            <strong>Transferred.</strong> Tick this box, next to <em>Completed?</em>, if you earned the credit at
+            another institution. The course shows (T) and counts as completed. Unticking it returns the card to how it
+            was before.
           </li>
         </ul>
       </Section>

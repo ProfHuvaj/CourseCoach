@@ -594,7 +594,7 @@ import { HelpModal } from './helpContent.jsx';
         </div>, document.body);
     };
 
-    const SemesterColumn = ({ title, courses, semesterType, yearKey, onDragStart, onDragEnd, onDrop, onDragEnter, isDropTarget, draggingCourse, isYearCompleted }) => {
+    const SemesterColumn = ({ title, courses, semesterType, yearKey, onDragStart, onDragEnd, onDrop, onDragEnter, isDropTarget, draggingCourse, isYearCompleted, onCollapse }) => {
       const totalCredits = courses.reduce((sum, c) => sum + c.credits, 0);
       const isEmpty = courses.length === 0;
       const isSummer = semesterType === 'summer';
@@ -683,6 +683,13 @@ import { HelpModal } from './helpContent.jsx';
                     </button>
                   )}
                 </div>
+                <div className="flex items-center gap-2">
+                {onCollapse && isEmpty && (
+                  <button type="button" onClick={onCollapse} aria-label="Hide summer" title="Hide this summer (it reopens when you click the Summer tab)"
+                    className="px-2 py-0.5 rounded-md border border-gray-300 bg-white text-xs font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700">
+                    Hide
+                  </button>
+                )}
                 <div className={`px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1 ${getCreditBadgeStyle()}`}>
                   {isOverWarning && !isSummer && !isCompleted && (
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -690,6 +697,7 @@ import { HelpModal } from './helpContent.jsx';
                     </svg>
                   )}
                   {totalCredits} cr
+                </div>
                 </div>
               </div>
             </div>
@@ -751,7 +759,13 @@ import { HelpModal } from './helpContent.jsx';
     const YearRow = ({ yearNum, yearData, yearKey, onDragStart, onDragEnd, onDrop, onDragEnter, dropTarget, draggingCourse }) => {
       const yearCredits = Object.values(yearData).flat().reduce((sum, c) => sum + c.credits, 0);
       const allCourses = Object.values(yearData).flat();
-      
+
+      // Summer is a slim vertical tab until the student opens it. A summer that has courses always stays open.
+      const [summerOpen, setSummerOpen] = useState(false);
+      const summerHasCourses = yearData.summer.length > 0;
+      const showSummer = summerHasCourses || summerOpen;
+      const summerIsDropTarget = dropTarget?.yearKey === yearKey && dropTarget?.semester === 'summer';
+
       // A year is completed if it has courses and all of them are taken
       const isYearCompleted = false; // years are never grayed out on their own
       
@@ -815,19 +829,48 @@ import { HelpModal } from './helpContent.jsx';
               draggingCourse={draggingCourse}
               isYearCompleted={isYearCompleted}
             />
-            <SemesterColumn 
-              title={`Year ${yearNum}, Summer`}
-              courses={yearData.summer} 
-              semesterType="summer" 
-              yearKey={yearKey}
-              onDragStart={onDragStart}
-              onDragEnd={onDragEnd}
-              onDrop={onDrop}
-              onDragEnter={onDragEnter}
-              isDropTarget={dropTarget?.yearKey === yearKey && dropTarget?.semester === 'summer'}
-              draggingCourse={draggingCourse}
-              isYearCompleted={isYearCompleted}
-            />
+            {showSummer ? (
+              <SemesterColumn
+                title={`Year ${yearNum}, Summer`}
+                courses={yearData.summer}
+                semesterType="summer"
+                yearKey={yearKey}
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
+                onDrop={onDrop}
+                onDragEnter={onDragEnter}
+                isDropTarget={summerIsDropTarget}
+                draggingCourse={draggingCourse}
+                isYearCompleted={isYearCompleted}
+                onCollapse={() => setSummerOpen(false)}
+              />
+            ) : (
+              <button
+                type="button"
+                aria-expanded="false"
+                aria-label={`Show Year ${yearNum} summer`}
+                title="Show summer. You can also drop a course here."
+                onClick={() => setSummerOpen(true)}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                onDragEnter={(e) => { e.preventDefault(); onDragEnter && onDragEnter(yearKey, 'summer'); }}
+                onDrop={(e) => { e.preventDefault(); onDrop(yearKey, 'summer'); }}
+                className={`flex-shrink-0 w-12 rounded-2xl border shadow-sm flex flex-col items-center justify-center gap-3 py-4 transition-all duration-200 ${
+                  summerIsDropTarget
+                    ? 'ring-2 ring-amber-400 ring-offset-2 border-amber-300 bg-amber-50 text-amber-700'
+                    : draggingCourse
+                      ? 'border-dashed border-amber-300 bg-amber-50/60 text-amber-700'
+                      : 'border-gray-200 bg-gray-50/80 text-gray-500 hover:bg-white hover:text-amber-700 hover:border-amber-300'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+                </svg>
+                <span className="text-sm font-semibold tracking-wide" style={{ writingMode: 'vertical-rl' }}>
+                  {draggingCourse ? 'Drop for summer' : 'Summer +'}
+                </span>
+              </button>
+            )}
           </div>
         </div>
       );
@@ -1216,89 +1259,96 @@ import { HelpModal } from './helpContent.jsx';
                   </div>
                   <div>
                     <h1 className="text-2xl font-bold text-gray-900 serif">CourseCoach</h1>
-                    <p className="text-xs text-gray-500 whitespace-nowrap">Suffolk University • Sawyer Business School</p>
+                    <p className="text-[11px] leading-snug text-gray-500 whitespace-nowrap">Suffolk University<br />Sawyer Business School</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 min-w-0">
-                  {/* Legend */}
-                  <div className="hidden lg:flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 bg-gray-50 rounded-xl">
-                    <span className="text-xs font-semibold text-gray-400 uppercase">Legend:</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded bg-gray-700"></div>
-                      <span className="text-xs text-gray-600">GenEd</span>
+                <div className="flex flex-1 items-center justify-end gap-3 min-w-0 ml-4">
+                  {/* Legend: one line, fills the space between the title and the student details */}
+                  <div
+                    role="group"
+                    aria-label="Legend"
+                    title="Legend: what the card colors and symbols mean"
+                    className={`hidden lg:flex flex-1 min-w-0 items-center justify-between gap-x-1 gap-y-1 px-2 py-2 bg-gray-50 rounded-xl whitespace-nowrap ${
+                      // Two majors, two minors or a double-count notice add too many entries for one line: wrap those cases
+                      selectedMajors.length === 2 || selectedMinors.length === 2 || (activeTab.notice || "").includes("Double count") ? "flex-wrap" : "flex-nowrap overflow-hidden"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1">
+                      <div className="w-2.5 h-2.5 rounded bg-gray-700"></div>
+                      <span className="text-[11px] text-gray-600">GenEd</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded bg-blue-600"></div>
-                      <span className="text-xs text-gray-600">SBS Core</span>
+                    <div className="flex items-center gap-1">
+                      <div className="w-2.5 h-2.5 rounded bg-blue-600"></div>
+                      <span className="text-[11px] text-gray-600">SBS Core</span>
                     </div>
                     {selectedMajors.length === 1 ? (
                       <>
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded bg-orange-600"></div>
-                          <span className="text-xs text-gray-600">Major (Required)</span>
+                        <div className="flex items-center gap-1">
+                          <div className="w-2.5 h-2.5 rounded bg-orange-600"></div>
+                          <span className="text-[11px] text-gray-600">Major (Required)</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded bg-yellow-400"></div>
-                          <span className="text-xs text-gray-600">Major (Elective)</span>
+                        <div className="flex items-center gap-1">
+                          <div className="w-2.5 h-2.5 rounded bg-yellow-400"></div>
+                          <span className="text-[11px] text-gray-600">Major (Elective)</span>
                         </div>
                       </>
                     ) : (
                       <>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-3 h-3 rounded bg-orange-600"></div><div className="w-3 h-3 rounded bg-yellow-400"></div>
-                          <span className="text-xs text-gray-600">Major 1: {majors[selectedMajors[0]].code}</span>
+                        <div className="flex items-center gap-1">
+                          <div className="w-2.5 h-2.5 rounded bg-orange-600"></div><div className="w-2.5 h-2.5 rounded bg-yellow-400"></div>
+                          <span className="text-[11px] text-gray-600">Major 1: {majors[selectedMajors[0]].code}</span>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-3 h-3 rounded bg-[#b98a63]"></div><div className="w-3 h-3 rounded bg-[#bdb36a]"></div>
-                          <span className="text-xs text-gray-600">Major 2: {majors[selectedMajors[1]].code}</span>
+                        <div className="flex items-center gap-1">
+                          <div className="w-2.5 h-2.5 rounded bg-[#b98a63]"></div><div className="w-2.5 h-2.5 rounded bg-[#bdb36a]"></div>
+                          <span className="text-[11px] text-gray-600">Major 2: {majors[selectedMajors[1]].code}</span>
                         </div>
                       </>
                     )}
                     {(activeTab.notice || "").includes("Double count") && (
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded" style={{ background: "linear-gradient(to right,#fb923c 66%,#2dd4bf 66%)" }}></div>
-                        <span className="text-xs text-gray-600">Double-counted</span>
+                      <div className="flex items-center gap-1">
+                        <div className="w-2.5 h-2.5 rounded" style={{ background: "linear-gradient(to right,#fb923c 66%,#2dd4bf 66%)" }}></div>
+                        <span className="text-[11px] text-gray-600">Double-counted</span>
                       </div>
                     )}
                     {selectedMinors.length === 1 && (
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded bg-teal-600"></div><div className="w-3 h-3 rounded bg-cyan-500"></div>
-                        <span className="text-xs text-gray-600">Minor: {minors[selectedMinors[0]].code}</span>
+                      <div className="flex items-center gap-1">
+                        <div className="w-2.5 h-2.5 rounded bg-teal-600"></div><div className="w-2.5 h-2.5 rounded bg-cyan-500"></div>
+                        <span className="text-[11px] text-gray-600">Minor: {minors[selectedMinors[0]].code}</span>
                       </div>
                     )}
                     {selectedMinors.length === 2 && (
                       <>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-3 h-3 rounded bg-teal-600"></div><div className="w-3 h-3 rounded bg-cyan-500"></div>
-                          <span className="text-xs text-gray-600">Minor 1: {minors[selectedMinors[0]].code}</span>
+                        <div className="flex items-center gap-1">
+                          <div className="w-2.5 h-2.5 rounded bg-teal-600"></div><div className="w-2.5 h-2.5 rounded bg-cyan-500"></div>
+                          <span className="text-[11px] text-gray-600">Minor 1: {minors[selectedMinors[0]].code}</span>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-3 h-3 rounded bg-[#6f9a93]"></div><div className="w-3 h-3 rounded bg-[#7f9fac]"></div>
-                          <span className="text-xs text-gray-600">Minor 2: {minors[selectedMinors[1]].code}</span>
+                        <div className="flex items-center gap-1">
+                          <div className="w-2.5 h-2.5 rounded bg-[#6f9a93]"></div><div className="w-2.5 h-2.5 rounded bg-[#7f9fac]"></div>
+                          <span className="text-[11px] text-gray-600">Minor 2: {minors[selectedMinors[1]].code}</span>
                         </div>
                       </>
                     )}
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded bg-purple-600"></div>
-                      <span className="text-xs text-gray-600">Free Elective</span>
+                    <div className="flex items-center gap-1">
+                      <div className="w-2.5 h-2.5 rounded bg-purple-600"></div>
+                      <span className="text-[11px] text-gray-600">Free Elective</span>
                     </div>
-                    <div className="flex items-center gap-2 border-l border-gray-300 pl-3">
-                      <div className="w-5 h-5 rounded bg-gray-300 flex items-center justify-center">
-                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <div className="flex items-center gap-2 border-l border-gray-300 pl-2">
+                      <div className="w-4 h-4 rounded bg-gray-300 flex items-center justify-center">
+                        <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       </div>
-                      <span className="text-xs text-gray-600">Completed</span>
+                      <span className="text-[11px] text-gray-600">Completed</span>
                     </div>
-                    <div className="flex items-center gap-2 border-l border-gray-300 pl-3">
+                    <div className="flex items-center gap-2 border-l border-gray-300 pl-2">
                       <span className="text-sm font-medium text-gray-500">(T)</span>
-                      <span className="text-xs text-gray-600">Transfer</span>
+                      <span className="text-[11px] text-gray-600">Transfer</span>
                     </div>
                   </div>
-                  {/* Help */}
+                  {/* Help (small version for narrow screens; on wide screens Help is at the bottom of the left menu) */}
                   <button
                     onClick={() => setShowHelp(true)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl border border-amber-300 bg-amber-50 text-amber-800 text-sm font-semibold hover:bg-amber-100 whitespace-nowrap"
+                    className="lg:hidden flex items-center gap-2 px-3 py-2 rounded-xl border border-amber-300 bg-amber-50 text-amber-800 text-sm font-semibold hover:bg-amber-100 whitespace-nowrap"
                   >
                     <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-xs flex items-center justify-center">?</span>
                     Help
@@ -1315,7 +1365,8 @@ import { HelpModal } from './helpContent.jsx';
                         onChange={(e) => setStudentName(e.target.value)}
                         onFocus={(e) => e.target.select()}
                         onBlur={() => { if (!studentName.trim()) setStudentName(DEFAULT_NAME); }}
-                        className="w-60 text-sm text-right font-semibold text-gray-800 bg-transparent rounded-md px-1.5 py-0.5 border border-transparent hover:border-gray-300 focus:border-amber-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
+                        style={{ width: `calc(${Math.min(Math.max(studentName.length, 11), 18) + 2}ch + 14px)` }}
+                        className="max-w-full text-sm text-right font-semibold text-gray-800 bg-transparent rounded-md px-1.5 py-0.5 border border-transparent hover:border-gray-300 focus:border-amber-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
                       />
                       <label className="flex items-center gap-1.5 text-xs text-gray-500">
                         Started:
@@ -1368,6 +1419,15 @@ import { HelpModal } from './helpContent.jsx';
                 );
               })}
             </ul>
+            {/* Help: large and prominent at the end of the menu */}
+            <button
+              type="button"
+              onClick={() => setShowHelp(true)}
+              className="mt-6 w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white text-lg font-bold shadow-md hover:shadow-lg hover:from-amber-600 hover:to-orange-700 focus:outline-none focus:ring-4 focus:ring-amber-200 transition-shadow"
+            >
+              <span className="w-7 h-7 rounded-full bg-white/25 flex items-center justify-center text-base">?</span>
+              Help
+            </button>
           </nav>
 
           <main className="flex-1 min-w-0">

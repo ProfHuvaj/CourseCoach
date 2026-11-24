@@ -187,7 +187,7 @@ export function FullHelp() {
           <li><strong>Degree Progress.</strong> Shows how many of the 124 credits you have completed. It sits in the Overview box with your major and minor choices.</li>
           <li><strong>BSBA Graduation Requirements.</strong> Bars for General Education, SBS Core, your major and free electives, split into transfer credit, Suffolk credit, and what remains.</li>
           <li><strong>Plans.</strong> Switch between plan tabs, or view all years or just one.</li>
-          <li><strong>The four-year plan.</strong> Each year has a Fall, Spring and Summer column of course cards.</li>
+          <li><strong>The four-year plan.</strong> Each year has a Fall and a Spring column of course cards, plus a Summer tab you can open when you need it.</li>
         </ul>
         <p>On wider screens, a legend in the header explains the card colors, and a menu on the left jumps to each section and each year.</p>
         <p>
@@ -237,8 +237,9 @@ export function FullHelp() {
             cannot be changed. Click <em>Unlock</em> to edit it again.
           </li>
           <li>
-            <strong>Summers.</strong> The Summer column starts empty. Drag courses into it if you plan to take them
-            then.
+            <strong>Summers.</strong> Most students do not take summer courses, so each year shows a slim Summer tab
+            on its right edge. Click the tab to open the Summer column, or drag a course onto the tab and it opens by
+            itself. A summer that has courses in it stays open. An empty one has a Hide button.
           </li>
         </ul>
       </Section>

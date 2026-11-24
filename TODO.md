@@ -10,6 +10,7 @@ Tasks to come back to later. Tick them off as you finish.
 - [ ] **! add a prominent privacy and indemnification notice that needs to be clicked to proceed !**
 - [ ] **links to majors' current curricula on the Suffolk web page (catalogue) that are bookmarked in my advising browser folder on Chrome**
 - [ ] **Add a print/export button which would export the plan in the current tab as a *.docx file**
+- [ ] **Review and approve the proposed longer acronyms for majors and minors** (for example RealEst instead of RE). I sent a proposal in chat; edit it and send it back, and I will apply the approved acronyms everywhere they appear.
 - [ ] **Provide the complete list of course prerequisites.** The prerequisite check is built and works, but only two courses are entered so far: SIB-429 (needs MKT-210, MGT-217, FIN-200, ISOM-319) and ENT-419 (needs ENT-201, ENT-319). Send me the rest, or add them yourself to the `PREREQUISITES` table near the top of `src/main.jsx` (one line per course).
 - [ ] **Provide the template for the one-page printout.** The purple Print button already saves the current tab's plan as a one-page PDF (US Letter, landscape) using a first-draft layout. Send me your template and I will rebuild the layout to match it. The layout lives in one file, `src/planPdf.js`.
 

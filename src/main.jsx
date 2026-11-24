@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 import { HelpModal } from './helpContent.jsx';
 import { BrandBadge, BrandBlock } from './brand.jsx';
+import { RequirementsBar } from './reqBar.jsx';
 
     const initialCourseData = {
       year1: {
@@ -1284,30 +1285,6 @@ import { BrandBadge, BrandBlock } from './brand.jsx';
         return { total: sum(() => true), transfer: sum(c => c.taken && c.transferred), suffolk: sum(c => c.taken && !c.transferred) };
       };
 
-      // Segmented Progress Bar component
-      const SegmentedProgressBar = ({ transferred, suffolk, total, transferColor, suffolkColor, bgColor }) => {
-        const safeTotal = total || 1;
-        const transferPercent = Math.min(100, (transferred / safeTotal) * 100);
-        const suffolkPercent = Math.min(100 - transferPercent, (suffolk / safeTotal) * 100);
-        
-        return (
-          <div className={`h-2.5 ${bgColor} rounded-full overflow-hidden flex`}>
-            {transferred > 0 && (
-              <div 
-                className="h-full bg-gray-500 transition-all duration-300" 
-                style={{ width: `${transferPercent}%`, backgroundImage: "repeating-linear-gradient(45deg, rgba(255,255,255,0.55) 0 2px, transparent 2px 4px)" }}
-              ></div>
-            )}
-            {suffolk > 0 && (
-              <div 
-                className={`h-full ${suffolkColor} transition-all duration-300`} 
-                style={{ width: `${suffolkPercent}%` }}
-              ></div>
-            )}
-          </div>
-        );
-      };
-
       const reqThemes = {
         gened: { box: "bg-gray-200 border-gray-300", text: "text-gray-800", fill: "bg-gray-700", track: "bg-gray-300" },
         core: { box: "bg-blue-100 border-blue-200", text: "text-blue-700", fill: "bg-blue-600", track: "bg-blue-200" },
@@ -1318,24 +1295,39 @@ import { BrandBadge, BrandBlock } from './brand.jsx';
         minor: { box: "bg-teal-100 border-teal-200", text: "text-teal-700", fill: "bg-teal-600", track: "bg-teal-200" },
       };
 
-      const renderReqBox = ({ key, label, href, sub, taken, transfer, suffolk, total, theme }) => (
-        <div key={key} className={`p-3 rounded-lg border ${theme.box}`}>
-          <div className="flex items-center justify-between gap-2">
-            <div className={`text-xs font-medium truncate ${theme.text}`} title={href ? `${label} - open the catalog's degree requirements in a new tab` : label}>
-              {href ? <a href={href} target="_blank" rel="noopener noreferrer" className="underline decoration-dotted underline-offset-2 hover:decoration-solid">{label}</a> : label}
-            </div>
-            <div className={`text-sm font-bold whitespace-nowrap ${theme.text}`}>{taken}/{total}</div>
-          </div>
-          <div className="mt-1.5">
-            <SegmentedProgressBar transferred={transfer} suffolk={suffolk} total={total} transferColor="bg-gray-400" suffolkColor={theme.fill} bgColor={theme.track} />
-          </div>
-          {(sub || transfer > 0) && (
-            <div className="mt-1 text-xs text-gray-500">
-              {sub}{sub && transfer > 0 ? " · " : ""}{transfer > 0 ? `${transfer} transferred` : ""}
-            </div>
-          )}
-        </div>
-      );
+      // The sections of the "BSBA Graduation Requirements" bar, left to right: GenEd, SBS Core, major(s), minor(s), Free Electives.
+      // Each section is as wide as its share of the plan's credits. The plan's courses are split between the sections
+      // so that every course counts once (a course shared by two programs belongs to the first), so the widths always add up
+      // to the whole bar. The numbers inside a section are the usual requirement figures (for example 0/18 for a major).
+      const requirementSegments = (() => {
+        const detail = (taken, total, transfer) => `${taken} of ${total} credits completed${transfer > 0 ? ` (${transfer} transferred)` : ""}`;
+        const segs = [];
+        const fromKey = (key, label, title, lines, theme) => {
+          const total = requiredCredits[key];
+          if (total <= 0) return;
+          const taken = transferredCredits[key] + suffolkCredits[key];
+          segs.push({ key, label, grow: total, taken, total, transfer: transferredCredits[key], suffolk: suffolkCredits[key], theme, tipTitle: title, tipLines: [...lines, detail(taken, total, transferredCredits[key])] });
+        };
+        fromKey("gened", "GenEd", "General Education (GenEd)", [`${requiredCredits.gened} credits`], reqThemes.gened);
+        fromKey("core", "SBS Core", "Sawyer Business School Core", [`${requiredCredits.core} credits`], reqThemes.core);
+        const programSegments = (kind, picks, list, themes) => picks.forEach((mi, n) => {
+          const item = list[mi];
+          const key = (kind === "major" ? "M:" : "m:") + item.code;
+          const st = programStats(key);
+          // credits of this program's own courses in the plan (shared courses are counted once, with the first program)
+          const own = allCourses.filter(c => typeOf(c) === kind && ((c.programs || [])[0] || (kind === "major" ? "M:" + majors[selectedMajors[0]].code : "")) === key).reduce((s, c) => s + c.credits, 0);
+          if (own <= 0 && st.total <= 0) return;
+          const word = kind === "major" ? "Major" : "Minor";
+          const label = `${picks.length > 1 ? `${word} ${n + 1}` : word}: ${item.code}`;
+          const lines = kind === "major" ? [`${item.required} required + ${item.elective} electives`, `${st.total} credits`] : [`${st.total} credits`];
+          segs.push({ key: kind + "-" + mi, label, shortLabel: item.code, href: item.url, grow: own || st.total, taken: st.transfer + st.suffolk, total: st.total, transfer: st.transfer, suffolk: st.suffolk,
+            theme: n === 1 ? themes[1] : themes[0], tipTitle: `${word}: ${item.name}`, tipLines: [...lines, detail(st.transfer + st.suffolk, st.total, st.transfer), "Click the name to open the catalog page"] });
+        });
+        programSegments("major", selectedMajors, majors, [reqThemes.major, reqThemes.major2]);
+        programSegments("minor", selectedMinors, minors, [reqThemes.minor, reqThemes.minor2]);
+        fromKey("elective", "Free Electives", "Free Electives", ["Any approved courses"], reqThemes.elective);
+        return segs;
+      })();
 
       const yearsToShow = activeYear === null
         ? [1, 2, 3, 4]
@@ -1615,7 +1607,7 @@ import { BrandBadge, BrandBlock } from './brand.jsx';
             {/* BSBA Graduation Requirements section */}
             <section id="requirements" className="scroll-mt-28 bg-slate-200/70 rounded-xl p-4 shadow-sm border border-slate-300 mb-6">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">BSBA Graduation Requirements</h2>
+                <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">BSBA Graduation Requirements <span className="normal-case font-medium text-gray-500 tracking-normal">(min. 124 credits)</span></h2>
                 <div className="flex items-center gap-3 text-xs text-gray-500">
                   <div className="flex items-center gap-1">
                     <div className="w-3 h-2 bg-gray-500 rounded-sm" style={{ backgroundImage: "repeating-linear-gradient(45deg, rgba(255,255,255,0.55) 0 2px, transparent 2px 4px)" }}></div>
@@ -1631,33 +1623,8 @@ import { BrandBadge, BrandBlock } from './brand.jsx';
                   </div>
                 </div>
               </div>
-              {/* Row 1: GenEd, SBS Core, Free Electives */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {renderReqBox({ key: "gened", label: "GenEd", taken: transferredCredits.gened + suffolkCredits.gened, transfer: transferredCredits.gened, suffolk: suffolkCredits.gened, total: requiredCredits.gened, theme: reqThemes.gened })}
-                {renderReqBox({ key: "core", label: "SBS Core", taken: transferredCredits.core + suffolkCredits.core, transfer: transferredCredits.core, suffolk: suffolkCredits.core, total: requiredCredits.core, theme: reqThemes.core })}
-                {renderReqBox({ key: "elective", label: "Free Electives", sub: requiredCredits.elective === 0 ? "Fully covered by majors and minors" : undefined, taken: transferredCredits.elective + suffolkCredits.elective, transfer: transferredCredits.elective, suffolk: suffolkCredits.elective, total: requiredCredits.elective, theme: reqThemes.elective })}
-              </div>
-              {/* Row 2: up to two majors and two minors */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3">
-                {selectedMajors.map((mi, n) => {
-                  const st = programStats("M:" + majors[mi].code);
-                  return renderReqBox({
-                    key: "major-" + mi,
-                    label: `${selectedMajors.length > 1 ? `Major ${n + 1}` : "Major"}: ${majors[mi].name}`,
-                    href: majors[mi].url, sub: `${majors[mi].required} required + ${majors[mi].elective} electives`,
-                    taken: st.transfer + st.suffolk, transfer: st.transfer, suffolk: st.suffolk, total: st.total, theme: n === 1 ? reqThemes.major2 : reqThemes.major,
-                  });
-                })}
-                {selectedMinors.map((mi, n) => {
-                  const st = programStats("m:" + minors[mi].code);
-                  return renderReqBox({
-                    key: "minor-" + mi,
-                    label: `${selectedMinors.length > 1 ? `Minor ${n + 1}` : "Minor"}: ${minors[mi].name}`,
-                    href: minors[mi].url, sub: "Minor",
-                    taken: st.transfer + st.suffolk, transfer: st.transfer, suffolk: st.suffolk, total: st.total, theme: n === 1 ? reqThemes.minor2 : reqThemes.minor,
-                  });
-                })}
-              </div>
+              {/* One bar: GenEd, SBS Core, major(s), minor(s), Free Electives, each as wide as its share of the credits */}
+              <RequirementsBar segments={requirementSegments} />
             </section>
 
             {/* Plans section: plan tabs, year filter, year rows */}

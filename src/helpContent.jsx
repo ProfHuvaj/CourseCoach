@@ -213,7 +213,7 @@ export function FullHelp() {
         <ul className="list-disc pl-6 space-y-1">
           <li><strong>Selected Major(s) and Selected Minor(s).</strong> Choose up to two of each. A major always stays selected.</li>
           <li><strong>Degree Progress.</strong> Shows how many of the 124 credits you have completed. It sits in the Overview box with your major and minor choices.</li>
-          <li><strong>BSBA Graduation Requirements.</strong> Bars for General Education, SBS Core, your major and free electives, split into transfer credit, Suffolk credit, and what remains.</li>
+          <li><strong>BSBA Graduation Requirements (min. 124 credits).</strong> One bar made of sections for General Education, SBS Core, your major(s), your minor(s) and Free Electives, left to right. Each section is as wide as its share of the credits, and its own bar fills with transfer credit, Suffolk credit, and what remains. Hover over a section to see its full name. A section that is too narrow shows less text, or none.</li>
           <li><strong>Plans.</strong> Switch between plan tabs, or view all years or just one. The purple <em>Print</em> button, on the right of the year buttons, saves the plan in the current tab as a one-page PDF. Use it on each tab to print the plans and compare them side by side.</li>
           <li><strong>The four-year plan.</strong> Each year has a Fall and a Spring column of course cards, plus a Summer tab you can open when you need it.</li>
         </ul>
@@ -284,8 +284,8 @@ export function FullHelp() {
         <ul className="list-disc pl-6 space-y-2">
           <li>The <strong>Degree Progress</strong> ring shows the share of the 124 credits you have completed.</li>
           <li>
-            The <strong>BSBA Graduation Requirements</strong> bars fill as you tick
-            courses complete. Transfer credit and Suffolk credit are shown in different shades.
+            The sections of the <strong>BSBA Graduation Requirements</strong> bar fill as you tick
+            courses complete. Transfer credit (hatched) and Suffolk credit are shown differently.
           </li>
           <li>
             <strong>Courses that count twice.</strong> With two majors selected, up to two courses can count toward both

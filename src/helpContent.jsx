@@ -184,12 +184,12 @@ export function FullHelp() {
         <p>The page is built from a few parts, from top to bottom:</p>
         <ul className="list-disc pl-6 space-y-1">
           <li><strong>Selected Major(s) and Selected Minor(s).</strong> Choose up to two of each. A major always stays selected.</li>
-          <li><strong>Degree Progress and Credit Breakdown.</strong> Show how many credits you have completed and where they fall.</li>
-          <li><strong>Graduation Requirements.</strong> Bars for General Education, SBS Core, your major and free electives, split into transfer credit, Suffolk credit, and what remains.</li>
-          <li><strong>Plan tabs and the Year buttons.</strong> Switch between plans, or view all years or just one.</li>
+          <li><strong>Degree Progress.</strong> Shows how many of the 124 credits you have completed. It sits in the Overview box with your major and minor choices.</li>
+          <li><strong>BSBA Graduation Requirements.</strong> Bars for General Education, SBS Core, your major and free electives, split into transfer credit, Suffolk credit, and what remains.</li>
+          <li><strong>Plans.</strong> Switch between plan tabs, or view all years or just one.</li>
           <li><strong>The four-year plan.</strong> Each year has a Fall, Spring and Summer column of course cards.</li>
         </ul>
-        <p>On wider screens, a legend in the header explains the card colors.</p>
+        <p>On wider screens, a legend in the header explains the card colors, and a menu on the left jumps to each section and each year.</p>
         <p>
           <strong>Comparing options.</strong> Each time you choose a new combination of majors and minors, CourseCoach
           opens a new plan tab, or takes you back to the tab you already have for that combination. Use the × on a
@@ -247,7 +247,7 @@ export function FullHelp() {
         <ul className="list-disc pl-6 space-y-2">
           <li>The <strong>Degree Progress</strong> ring shows the share of the 124 credits you have completed.</li>
           <li>
-            The <strong>Credit Breakdown</strong> and <strong>Graduation Requirements</strong> bars fill as you tick
+            The <strong>BSBA Graduation Requirements</strong> bars fill as you tick
             courses complete. Transfer credit and Suffolk credit are shown in different shades.
           </li>
           <li>Notes can appear on the page when something needs your attention, for example when a course counts toward more than one program.</li>

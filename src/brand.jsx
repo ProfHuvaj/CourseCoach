@@ -1,22 +1,51 @@
-import React, { useCallback, useLayoutEffect, useRef } from 'react';
+import React, { useCallback, useId, useLayoutEffect, useRef } from 'react';
 
 // The CourseCoach logo pieces, shared by the planner (main.jsx) and the help page (help.jsx).
 
-// A cocoa (cacao) pod: a pointed oval with ridges and a short stem, drawn in white for the orange badge.
-// Edit the shapes here to change the icon.
-export function CocoaIcon({ className = 'w-6 h-6' }) {
+// The cocoa icon: an opened cacao pod showing its seeds, a closed pod behind it, a stem and two leaves.
+// It is a white silhouette with cut-out details, so it takes the colour of the text around it (white on the orange badge).
+// Everything is drawn in a 64 x 64 box. In the mask, white shapes show and black shapes cut holes.
+export function CocoaIcon({ className = 'w-9 h-9' }) {
+  const id = 'cocoa-' + useId().replace(/:/g, '');
+  const pod = 'M0 -19 C13 -10 13 10 0 19 C-13 10 -13 -10 0 -19 Z';      // a pointed oval, standing upright
+  const cavity = 'M0 -14.5 C8.5 -7 8.5 7 0 14.5 C-8.5 7 -8.5 -7 0 -14.5 Z'; // the hollow of the opened pod
+  const seeds = [                                                          // x, y, half-width, half-height, tilt
+    [0, -11, 2, 1.9, 0],
+    [-2.9, -6, 2.5, 2.1, -18], [2.9, -6, 2.5, 2.1, 18],
+    [-2.9, -0.5, 2.5, 2.1, -18], [2.9, -0.5, 2.5, 2.1, 18],
+    [-2.9, 5, 2.5, 2.1, -18], [2.9, 5, 2.5, 2.1, 18],
+    [0, 10.5, 2, 1.9, 0],
+  ];
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <g transform="rotate(35 12 12)">
-        {/* the pod */}
-        <path d="M12 3 C18 6.5 19 15 12 22 C5 15 6 6.5 12 3 Z" fill="currentColor" fillOpacity="0.22" />
-        {/* the ridges that run along a cacao pod */}
-        <path d="M12 3.5 C9.6 9 9.6 16 12 21.5" />
-        <path d="M12 3.5 C14.4 9 14.4 16 12 21.5" />
-        <path d="M12 4 L12 21" strokeWidth="1.1" />
-        {/* the stem */}
-        <path d="M12 3 C12 1.8 12.7 1.1 13.8 1" />
-      </g>
+    <svg className={className} viewBox="0 0 64 64" aria-hidden="true">
+      <defs>
+        <mask id={id} maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+          {/* stems that join the pods and leaves to the branch */}
+          <path d="M40 18 C40 12 43 8 49 4" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
+          <path d="M44.5 24 C45.5 18 46.5 13 47.5 9" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
+          {/* two leaves, each with a cut-out midrib */}
+          <path d="M44 10 C38 2 28 1 22 4 C28 11 38 14 44 10 Z" fill="#fff" />
+          <path d="M42 9.6 C36 8 29 6 24.5 4.6" fill="none" stroke="#000" strokeWidth="1.1" strokeLinecap="round" />
+          <path d="M47 8 C52 3.5 59 5.5 62 14 C56 15.5 50 13.5 47 8 Z" fill="#fff" />
+          <path d="M49 8.8 C53 9.5 58 11 60.5 13" fill="none" stroke="#000" strokeWidth="1.1" strokeLinecap="round" />
+          {/* the closed pod behind: ridges cut into it */}
+          <g transform="translate(50 38) rotate(-22) scale(0.9)">
+            <path d={pod} transform="scale(0.9 0.9)" fill="#fff" />
+            <path d="M0 -15 C-4.5 -6 -4.5 6 0 15" fill="none" stroke="#000" strokeWidth="1.3" strokeLinecap="round" />
+            <path d="M0 -15 C4.5 -6 4.5 6 0 15" fill="none" stroke="#000" strokeWidth="1.3" strokeLinecap="round" />
+          </g>
+          {/* the opened pod in front, with a thin gap around it, its hollow cut out and the seeds put back */}
+          <g transform="translate(28 37) rotate(32) scale(1.2)">
+            <path d={pod} fill="#000" stroke="#000" strokeWidth="2.6" strokeLinejoin="round" />
+            <path d={pod} fill="#fff" />
+            <path d={cavity} fill="#000" />
+            {seeds.map(([x, y, rx, ry, tilt], i) => (
+              <ellipse key={i} cx={x} cy={y} rx={rx} ry={ry} transform={`rotate(${tilt} ${x} ${y})`} fill="#fff" />
+            ))}
+          </g>
+        </mask>
+      </defs>
+      <rect width="64" height="64" fill="currentColor" mask={`url(#${id})`} />
     </svg>
   );
 }
@@ -25,7 +54,7 @@ export function CocoaIcon({ className = 'w-6 h-6' }) {
 export function BrandBadge() {
   return (
     <div className="self-stretch min-h-[48px] px-3 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex flex-col items-center justify-center gap-0.5 text-white font-bold text-base leading-none tracking-tight shadow-lg flex-shrink-0">
-      <CocoaIcon className="w-6 h-6" />
+      <CocoaIcon className="w-9 h-9" />
       <span>CouCoa</span>
     </div>
   );

@@ -5,6 +5,7 @@ import './index.css';
 import { HelpModal } from './helpContent.jsx';
 import { BrandBadge, BrandBlock } from './brand.jsx';
 import { RequirementsBar } from './reqBar.jsx';
+import { useHoverTip } from './hoverTip.jsx';
 
     const initialCourseData = {
       year1: {
@@ -89,13 +90,13 @@ import { RequirementsBar } from './reqBar.jsx';
     const CompletedContext = React.createContext(null); // toggles a box's "Completed?" check box // opens a card's "Select" menu
     const TransferredContext = React.createContext(null); // toggles a box's "Transferred" check box
 
-    // Category text shown on each course box, e.g. "ENT Major, required"
+    // Category text shown on each course box, e.g. "ENT Maj, required" (shortened so the second row of the box fits)
     const categoryText = (c) => {
       if (c.type === "gened") return "General Education";
       if (c.type === "core") return "SBS Core";
       if (c.type === "elective") return "Free Elective";
       const key = (c.programs && c.programs[0]) || (c.type.startsWith("major") ? "M:ENT" : "m:");
-      return `${key.slice(2)} ${key[0] === "M" ? "Major" : "Minor"}, ${c.type.endsWith("Elective") ? "elective" : "required"}`;
+      return `${key.slice(2)} ${key[0] === "M" ? "Maj" : "Min"}, ${c.type.endsWith("Elective") ? "elect." : "required"}`;
     };
     // "Enter manually" is only for boxes where the student has to supply a course: GenEd areas such as Math, SCGP, CI
     // and STE, electives, minors and open "Advanced Course" slots. A box that already names one specific course in the
@@ -135,14 +136,94 @@ import { RequirementsBar } from './reqBar.jsx';
     };
 
     // The text line(s) under a course title. A course that double counts for two programs shows one line for each,
-    // e.g. "ENT Major, elective" and, right under it, "IB Major, elective".
+    // e.g. "ENT Maj, elect." and, right under it, "IB Maj, elect.".
     const categoryLines = (c) => {
       const lines = [categoryText(c)];
       if (c.dual && c.dual.program) {
         const key = c.dual.program;
-        lines.push(`${key.slice(2)} ${key[0] === "M" ? "Major" : "Minor"}, ${c.dual.type.endsWith("Elective") ? "elective" : "required"}`);
+        lines.push(`${key.slice(2)} ${key[0] === "M" ? "Maj" : "Min"}, ${c.dual.type.endsWith("Elective") ? "elect." : "required"}`);
       }
       return lines;
+    };
+
+    // ---- Prerequisites -------------------------------------------------------------------------------------------
+    // course code -> the courses that must be taken BEFORE it (in an earlier semester). Add more courses here.
+    // A prerequisite that is not part of the student's plan is ignored (it cannot be checked).
+    const PREREQUISITES = {
+      "SIB-429": ["MKT-210", "MGT-217", "FIN-200", "ISOM-319"],
+      "ENT-419": ["ENT-201", "ENT-319"],
+    };
+    const SEM_ORDER = ["fall", "spring", "summer"];
+    const semIndex = (yearKey, sem) => (Number(yearKey.replace("year", "")) - 1) * 3 + SEM_ORDER.indexOf(sem); // time order of semesters
+    const semName = (yearKey, sem) => `Year ${yearKey.replace("year", "")}, ${sem[0].toUpperCase() + sem.slice(1)}`;
+    const NEEDS_APPROVAL = "This is not normally allowed. The student needs written approval from faculty or the SBS dean's office to take a course in the same semester as one of its prerequisites.";
+
+    // Where every course of a plan sits: code -> { idx (time order), yearKey, semester }
+    const locateCourses = (data) => {
+      const where = {};
+      Object.keys(data).forEach(yk => Object.keys(data[yk]).forEach(sem => data[yk][sem].forEach(c => { where[c.name] = { idx: semIndex(yk, sem), yearKey: yk, semester: sem }; })));
+      return where;
+    };
+    // Prerequisite problems in a plan: { code: { before: [prerequisites scheduled LATER than the course], same: [prerequisites in the SAME semester] } }
+    const prereqProblems = (data) => {
+      const where = locateCourses(data);
+      const out = {};
+      Object.entries(PREREQUISITES).forEach(([code, reqs]) => {
+        const me = where[code];
+        if (!me) return;
+        const before = [], same = [];
+        reqs.forEach(r => { const p = where[r]; if (!p) return; if (p.idx > me.idx) before.push(r); else if (p.idx === me.idx) same.push(r); });
+        if (before.length || same.length) out[code] = { before, same };
+      });
+      return out;
+    };
+    const prereqMessage = (code, issue) => {
+      const parts = [];
+      if (issue.before.length) parts.push(`${code} is scheduled before its prerequisite${issue.before.length > 1 ? "s" : ""} ${issue.before.join(", ")}. This is not allowed.`);
+      if (issue.same.length) parts.push(`${code} is scheduled in the same semester as its prerequisite${issue.same.length > 1 ? "s" : ""} ${issue.same.join(", ")}. ${NEEDS_APPROVAL}`);
+      return parts.join(" ");
+    };
+    // Would moving `course` to another semester break a prerequisite? Returns the NEW problems the move would cause.
+    const checkPrereqMove = (data, course, fromYear, fromSem, toYear, toSem) => {
+      const after = JSON.parse(JSON.stringify(data));
+      after[fromYear][fromSem] = after[fromYear][fromSem].filter(c => c.id !== course.id);
+      after[toYear][toSem] = [...after[toYear][toSem], course];
+      const was = prereqProblems(data), will = prereqProblems(after);
+      const whereAfter = locateCourses(after);
+      const blocked = [], warned = [];
+      Object.entries(will).forEach(([code, p]) => {
+        p.before.filter(r => !(was[code] && was[code].before.includes(r))).forEach(r =>
+          blocked.push(`${code} needs ${r} first, but this move would put ${code} in ${semName(whereAfter[code].yearKey, whereAfter[code].semester)} and ${r} in ${semName(whereAfter[r].yearKey, whereAfter[r].semester)}.`));
+        p.same.filter(r => !(was[code] && was[code].same.includes(r))).forEach(r =>
+          warned.push(`${code} and its prerequisite ${r} would both be taken in ${semName(whereAfter[code].yearKey, whereAfter[code].semester)}.`));
+      });
+      return { blocked, warned };
+    };
+    const PrereqContext = React.createContext({}); // code -> prerequisite problems of the plan on screen
+
+    // Window shown when a move touches a prerequisite: "blocked" (not allowed) or "warn" (allowed, but needs approval)
+    const PrereqNoticeModal = ({ notice, onClose }) => {
+      if (!notice) return null;
+      const blocked = notice.kind === "blocked";
+      return (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}></div>
+          <div role="alertdialog" aria-modal="true" className="relative bg-white rounded-2xl shadow-2xl max-w-md mx-4 overflow-hidden animate-bounce-in">
+            <div className={`px-6 py-4 ${blocked ? 'bg-red-600' : 'bg-red-500'}`}>
+              <h3 className="text-xl font-bold text-white">{blocked ? 'Move not allowed' : 'Prerequisite warning'}</h3>
+            </div>
+            <div className="px-6 py-5 space-y-3 text-gray-700 leading-relaxed">
+              {notice.lines.map(l => <p key={l}>{l}</p>)}
+              {blocked
+                ? <p className="font-medium text-red-600">A course cannot be taken before its prerequisites, so the course stays where it was.</p>
+                : <p className="font-medium text-red-600">{NEEDS_APPROVAL} The move was made, and the course is shown in red until it is moved again.</p>}
+            </div>
+            <div className="px-6 py-4 bg-gray-50 flex justify-end">
+              <button onClick={onClose} className="px-6 py-2.5 rounded-xl font-semibold text-white bg-red-500 hover:bg-red-600">I Understand</button>
+            </div>
+          </div>
+        </div>
+      );
     };
 
     const LockContext = React.createContext({ locks: {}, toggle: () => {} }); // semesters the student has locked
@@ -440,7 +521,7 @@ import { RequirementsBar } from './reqBar.jsx';
     const planSignature = (majorIdxs, minorIdxs) => [...majorIdxs].sort((a, b) => a - b).join(",") + "|" + [...minorIdxs].sort((a, b) => a - b).join(",");
 
     // Shorter display titles so each course title fits on one line (full title shown on hover)
-    const SHORT_TITLES = {"ACCT-201": "Acct. for Decision Making", "ISOM-210": "Mgmt Information Systems", "SCGP": "Social, Cultural & Global", "STE": "Science, Tech & Engineering", "ACCT-202": "Acct. for Decision Making II", "ACCT-430": "Accounting Info Systems", "ACCT-431": "Auditing & Assurance Services", "ACCT-450": "Accounting Theory & Practice", "ISOM-130": "Intro to Business Analytics", "EC-350": "Data Analytics for Econ & Bus", "ACCT-440": "Corp. Acct. & Financial Mgmt", "FIN-417": "Multinational Financial Mgmt", "FIN-424": "Retirement & Estate Planning", "FIN-475": "Case Studies in Fin. Planning", "SIB-321": "Intro to Intl Business", "SIB-419": "Global Bus. Theory & Practice", "MGT-419": "Mgmt Consulting Project", "MKT-320": "Marketing Research Methods", "MKT-419": "Mktg Policies & Strategies", "ENT-211": "The Sports Institute", "ISOM-440": "ERP & Process Transformation", "MKT-427": "Global Supply Chain Relations", "SCM-520": "Supply Chain Mgmt Internship", "ISOM-260": "AI for Business", "ISOM-360": "Building AI Agents", "ISOM-230": "Big Data, BI & Analytics", "ISOM-330": "Machine Learning & Analytics", "ISOM-240": "Data Privacy & Forensics", "EC-312 / EC-432": "Macro Theory / Managerial Econ", "ENT-317": "Real Estate Development", "FIN-409 / FIN-413": "Securities or Invest. Analysis", "FIN-410": "Fin. Statement Analysis", "FIN-432": "Risk Mgmt & Fin. Institutions", "FIN-430 / ISOM-215": "Blockchain or Mobile App Dev.", "HLTH-301": "Healthcare in the U.S.", "PAD-310": "Intro to Public Service", "Advanced Course 1": "Customized Program of Study", "Advanced Course 2": "Customized Program of Study", "Advanced Course 3": "Customized Program of Study", "Advanced Course 4": "Customized Program of Study", "Advanced Course 5": "Customized Program of Study", "Advanced Course 6": "Customized Program of Study", "Business Area": "EC-102, ACCT-202 or ISOM-319", "FIN-315": "Principles of Investments", "FIN-313": "General Insurance"};
+    const SHORT_TITLES = {"ACCT-201": "Acct. for Decision Making", "ISOM-210": "Mgmt Information Systems", "SCGP": "Social, Cult., Glob., Persp.", "STE": "Science, Tech & Engineering", "ACCT-202": "Acct. for Decision Making II", "ACCT-430": "Accounting Info Systems", "ACCT-431": "Auditing & Assurance Services", "ACCT-450": "Accounting Theory & Practice", "ISOM-130": "Intro to Business Analytics", "EC-350": "Data Analytics for Econ & Bus", "ACCT-440": "Corp. Acct. & Financial Mgmt", "FIN-417": "Multinational Financial Mgmt", "FIN-424": "Retirement & Estate Planning", "FIN-475": "Case Studies in Fin. Planning", "SIB-321": "Intro to Intl Business", "SIB-419": "Global Bus. Theory & Practice", "MGT-419": "Mgmt Consulting Project", "MKT-320": "Marketing Research Methods", "MKT-419": "Mktg Policies & Strategies", "ENT-211": "The Sports Institute", "ISOM-440": "ERP & Process Transformation", "MKT-427": "Global Supply Chain Relations", "SCM-520": "Supply Chain Mgmt Internship", "ISOM-260": "AI for Business", "ISOM-360": "Building AI Agents", "ISOM-230": "Big Data, BI & Analytics", "ISOM-330": "Machine Learning & Analytics", "ISOM-240": "Data Privacy & Forensics", "EC-312 / EC-432": "Macro Theory / Managerial Econ", "ENT-317": "Real Estate Development", "FIN-409 / FIN-413": "Securities or Invest. Analysis", "FIN-410": "Fin. Statement Analysis", "FIN-432": "Risk Mgmt & Fin. Institutions", "FIN-430 / ISOM-215": "Blockchain or Mobile App Dev.", "HLTH-301": "Healthcare in the U.S.", "PAD-310": "Intro to Public Service", "Advanced Course 1": "Customized Program of Study", "Advanced Course 2": "Customized Program of Study", "Advanced Course 3": "Customized Program of Study", "Advanced Course 4": "Customized Program of Study", "Advanced Course 5": "Customized Program of Study", "Advanced Course 6": "Customized Program of Study", "Business Area": "EC-102, ACCT-202 or ISOM-319", "FIN-315": "Principles of Investments", "FIN-313": "General Insurance"};
 
     const majorTheme = {
       btn: "bg-orange-100 border-orange-300 text-orange-700 focus:ring-orange-400",
@@ -466,7 +547,7 @@ import { RequirementsBar } from './reqBar.jsx';
         document.addEventListener("mousedown", close);
         return () => document.removeEventListener("mousedown", close);
       }, []);
-      const names = selected.map(i => options[i].name).join(", ");
+      const names = selected.map(i => options[i].name).join(" + ");
       return (
         <div ref={ref} className="relative mt-1">
           <button
@@ -474,7 +555,7 @@ import { RequirementsBar } from './reqBar.jsx';
             onClick={() => setOpen(!open)}
             className={`w-full px-3 py-2 border rounded-lg font-semibold text-sm text-left flex items-center justify-between gap-2 focus:outline-none focus:ring-2 ${theme.btn}`}
           >
-            <span className="truncate">{selected.length ? names : placeholder}</span>
+            <span className="truncate" title={selected.length ? names : undefined}>{selected.length ? names : placeholder}</span>
             <svg className={`w-4 h-4 flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
@@ -534,6 +615,8 @@ import { RequirementsBar } from './reqBar.jsx';
       const openSelect = React.useContext(SelectContext);
       const toggleCompleted = React.useContext(CompletedContext);
       const toggleTransferredCard = React.useContext(TransferredContext);
+      const prereqIssues = React.useContext(PrereqContext);
+      const tip = useHoverTip();
       const gray = !!locked; // completed or locked: grayed out and not editable
       // A course that double counts has ONE colour: that of the major where it is required, or, when it is an
       // elective in both, that of the first major. Both programs are named in the text lines under the title.
@@ -544,78 +627,97 @@ import { RequirementsBar } from './reqBar.jsx';
       const showCategory = course.type !== "gened" && course.type !== "core"; // GenEd and SBS Core: colour and legend are enough
       const categories = categoryLines(course);
 
+      // A course taken in the same semester as a prerequisite (or before it) is shown in red, with a message on hover
+      const issue = prereqIssues[course.name];
+      const flagged = !!issue;
+      const hoverMessage = (flagged || course.dual) ? (
+        <>
+          {flagged && (
+            <div>
+              <div className="font-semibold text-red-300">Prerequisite warning</div>
+              <div>{prereqMessage(course.name, issue)}</div>
+            </div>
+          )}
+          {course.dual && <div className={flagged ? "mt-1.5 text-gray-300" : ""}>{course.dual.note}</div>}
+        </>
+      ) : null;
+
       // For taken courses, use dull version of category color for course name
-      const courseNameColor = gray ? baseStyle.textDull : baseStyle.text;
-      
+      const courseNameColor = flagged ? "text-red-600" : (gray ? baseStyle.textDull : baseStyle.text);
+      const labelColor = gray ? "text-gray-300" : "text-gray-400";
+
       return (
-        <div 
+        <div
           draggable={!gray}
-          onDragStart={(e) => !gray && onDragStart(e, course, yearKey, semester)}
+          onDragStart={(e) => { tip.hide(); if (!gray) onDragStart(e, course, yearKey, semester); }}
           onDragEnd={onDragEnd}
-          title={course.dual ? course.dual.note : undefined}
-          className={`relative ${style.bg} ${style.border} border rounded-xl px-3.5 py-2 mb-2 flex justify-between items-center shadow-sm transition-all group ${
-            gray 
-              ? 'cursor-default opacity-90' 
+          onMouseEnter={tip.show}
+          onMouseLeave={tip.hide}
+          className={`relative ${style.bg} ${style.border} border rounded-xl px-3.5 py-2.5 mb-2 shadow-sm transition-all group ${
+            gray
+              ? 'cursor-default opacity-90'
               : 'hover:shadow-md cursor-grab active:cursor-grabbing'
           } ${isDragging ? 'opacity-50 scale-95' : ''}`}
         >
-          <div className="min-w-0 flex-1 relative">
+          {tip.render(hoverMessage)}
+          {/* first row: course code and title on the left, credits at the top right */}
+          <div className="flex items-baseline justify-between gap-2">
             <div className="flex items-baseline gap-2 min-w-0">
               <span className={`font-semibold shrink-0 ${courseNameColor}`}>{course.name}</span>
-              <span className={`truncate ${gray ? 'text-gray-400' : 'text-gray-500'}`} title={course.fullName}>{course.manual ? course.fullName : (SHORT_TITLES[course.name] || course.fullName)}</span>
+              <span className={`truncate ${flagged ? 'text-red-600' : (gray ? 'text-gray-400' : 'text-gray-500')}`} title={course.fullName}>{course.manual ? course.fullName : (SHORT_TITLES[course.name] || course.fullName)}</span>
             </div>
-            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-1 min-w-0">
-              {/* GenEd and SBS Core are recognised by their colour and the legend, so they carry no category text */}
-              {showCategory && (
-                <span className={`flex flex-col min-w-0 text-xs leading-snug ${gray ? 'text-gray-300' : 'text-gray-400'}`}>
-                  {categories.map(line => <span key={line} className="truncate" title={line}>{line}</span>)}
-                </span>
-              )}
-              {hasSelection(course) && (
-                <button type="button" disabled={gray}
-                  onClick={(e) => { e.stopPropagation(); openSelect && openSelect(e.currentTarget.getBoundingClientRect(), course.id, yearKey, semester); }}
-                  className="shrink-0 px-1.5 py-0.5 rounded-md border border-gray-300 bg-white/80 text-xs font-medium text-gray-600 hover:bg-white hover:text-gray-800 disabled:opacity-50 disabled:cursor-default">
-                  Select
-                </button>
-              )}
-              {/* the two check boxes stay together if the row has to wrap */}
-              <span className="shrink-0 inline-flex items-center gap-x-1.5">
-              <label className={`shrink-0 inline-flex items-center gap-1 text-xs select-none ${gray || course.transferred ? 'text-gray-300' : 'text-gray-500 cursor-pointer'}`} title={course.transferred ? "Transfer credit counts as completed" : "Tick when the course is completed; its credits count toward your degree progress"}>
-                <input type="checkbox" checked={!!course.taken} disabled={gray || !!course.transferred}
-                  onChange={() => toggleCompleted && toggleCompleted(yearKey, semester, course.id)}
-                  className="w-3.5 h-3.5 rounded border-gray-300 accent-orange-500" />
-                Completed?
-              </label>
-              <label className={`shrink-0 inline-flex items-center gap-1 text-xs select-none ${gray ? 'text-gray-300' : 'text-gray-500 cursor-pointer'}`} title="Tick if you earned the credit at another institution. Transfer credit also counts as completed">
-                <input type="checkbox" checked={!!course.transferred} disabled={gray}
-                  onChange={() => toggleTransferredCard && toggleTransferredCard(yearKey, semester, course.id)}
-                  className="w-3.5 h-3.5 rounded border-gray-300 accent-orange-500" />
-                Transferred
-              </label>
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className={`relative whitespace-nowrap ${style.text}`}>
-              <span className="text-lg font-bold">{course.credits}</span>
-              <span className="text-sm font-medium ml-1 opacity-80">{course.credits === 1 ? "credit" : "credits"}</span>
+            <div className={`shrink-0 whitespace-nowrap leading-6 ${style.text}`}>
+              <span className="text-lg font-bold leading-6">{course.credits}</span>
+              <span className="text-sm font-medium leading-6 ml-1 opacity-80">{course.credits === 1 ? "credit" : "credits"}</span>
               {course.transferred && <span className="text-sm font-medium text-gray-400 ml-1">(T)</span>}
             </div>
-            {!gray && move && (
-              <div className="flex flex-col opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity -my-1">
-                <button type="button" title="Move up" aria-label={`Move ${course.name} up`} disabled={isFirst}
-                  onClick={(e) => { e.stopPropagation(); move(yearKey, semester, course.id, -1); }}
-                  className="p-0.5 rounded text-gray-400 hover:text-gray-700 hover:bg-black/5 disabled:opacity-30 disabled:cursor-default">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" /></svg>
-                </button>
-                <button type="button" title="Move down" aria-label={`Move ${course.name} down`} disabled={isLast}
-                  onClick={(e) => { e.stopPropagation(); move(yearKey, semester, course.id, 1); }}
-                  className="p-0.5 rounded text-gray-400 hover:text-gray-700 hover:bg-black/5 disabled:opacity-30 disabled:cursor-default">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
-                </button>
-              </div>
-            )}
           </div>
+          {/* second row: category, Select button, check boxes (the full width of the box; min-h keeps single-row boxes the same height) */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 min-h-[18px] min-w-0">
+            {/* GenEd and SBS Core are recognised by their colour and the legend, so they carry no category text */}
+            {showCategory && (
+              <span className={`flex flex-col min-w-0 text-xs leading-snug ${labelColor}`}>
+                {categories.map(line => <span key={line} className="truncate" title={line}>{line}</span>)}
+              </span>
+            )}
+            {hasSelection(course) && (
+              <button type="button" disabled={gray}
+                onClick={(e) => { e.stopPropagation(); openSelect && openSelect(e.currentTarget.getBoundingClientRect(), course.id, yearKey, semester); }}
+                className="shrink-0 px-1.5 py-0 leading-4 rounded-md border border-gray-300 bg-white/80 text-xs font-medium text-gray-600 hover:bg-white hover:text-gray-800 disabled:opacity-50 disabled:cursor-default">
+                Select
+              </button>
+            )}
+            {/* the two check boxes stay together if the row has to wrap */}
+            <span className="shrink-0 inline-flex items-center gap-x-2">
+              <label className={`shrink-0 inline-flex items-center gap-1 text-xs select-none ${gray || course.transferred ? 'text-gray-300' : 'text-gray-400 cursor-pointer'}`} title={course.transferred ? "Transfer credit counts as completed" : "Tick when the course is completed; its credits count toward your degree progress"}>
+                <input type="checkbox" checked={!!course.taken} disabled={gray || !!course.transferred}
+                  onChange={() => toggleCompleted && toggleCompleted(yearKey, semester, course.id)}
+                  className="cc-check" />
+                Completed?
+              </label>
+              <label className={`shrink-0 inline-flex items-center gap-1 text-xs select-none ${gray ? 'text-gray-300' : 'text-gray-400 cursor-pointer'}`} title="Tick if you earned the credit at another institution. Transfer credit also counts as completed">
+                <input type="checkbox" checked={!!course.transferred} disabled={gray}
+                  onChange={() => toggleTransferredCard && toggleTransferredCard(yearKey, semester, course.id)}
+                  className="cc-check" />
+                Transferred
+              </label>
+            </span>
+          </div>
+          {/* move up / down: appear at the bottom right on hover, over the empty end of the second row */}
+          {!gray && move && (
+            <div className="absolute right-2 bottom-1.5 flex gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+              <button type="button" title="Move up" aria-label={`Move ${course.name} up`} disabled={isFirst}
+                onClick={(e) => { e.stopPropagation(); move(yearKey, semester, course.id, -1); }}
+                className="p-0.5 rounded text-gray-400 hover:text-gray-700 hover:bg-black/5 disabled:opacity-30 disabled:cursor-default">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" /></svg>
+              </button>
+              <button type="button" title="Move down" aria-label={`Move ${course.name} down`} disabled={isLast}
+                onClick={(e) => { e.stopPropagation(); move(yearKey, semester, course.id, 1); }}
+                className="p-0.5 rounded text-gray-400 hover:text-gray-700 hover:bg-black/5 disabled:opacity-30 disabled:cursor-default">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+              </button>
+            </div>
+          )}
         </div>
       );
     };
@@ -684,7 +786,14 @@ import { RequirementsBar } from './reqBar.jsx';
       const isSummer = semesterType === 'summer';
       const isOverWarning = totalCredits >= 17;
       const isAtLimit = totalCredits > 20;
-      
+      const creditTip = useHoverTip(); // the Credit Warning, shown when the pointer is over the credit total of a semester over 17 credits
+      const creditWarning = totalCredits > 17 ? (
+        <>
+          <div className="font-semibold text-amber-300">Credit Warning</div>
+          <div>Your regular tuition covers up to and including 17 credits per semester. If you take more than 17 credits in a semester, you will need to pay for credits over 17. You cannot take more than 21 credits in a semester.</div>
+        </>
+      ) : null;
+
       // A semester is completed if all courses are taken, or if it's part of a completed year
       const naturallyDone = false; // every semester is editable until the student locks it
       const { locks, toggle } = React.useContext(LockContext);
@@ -774,7 +883,8 @@ import { RequirementsBar } from './reqBar.jsx';
                     Hide
                   </button>
                 )}
-                <div className={`px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1 ${getCreditBadgeStyle()}`}>
+                <div onMouseEnter={creditTip.show} onMouseLeave={creditTip.hide} className={`px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1 ${getCreditBadgeStyle()}`}>
+                  {creditTip.render(creditWarning)}
                   {isOverWarning && !isSummer && !isCompleted && (
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -1014,7 +1124,7 @@ import { RequirementsBar } from './reqBar.jsx';
     // Left navigation menu entries (level 2 = indented under the item above). Each id matches a section on the page.
     const NAV_ITEMS = [
       { id: "overview", label: "Overview", level: 1 },
-      { id: "requirements", label: "BSBA Graduation Requirements", level: 1 },
+      { id: "requirements", label: "BSBA Degree Requirements", level: 1 },
       { id: "plans", label: "All Years", level: 1 },
       { id: "year-1", label: "Year 1", level: 2, year: 1 },
       { id: "year-2", label: "Year 2", level: 2, year: 2 },
@@ -1076,6 +1186,7 @@ import { RequirementsBar } from './reqBar.jsx';
       const [dragSource, setDragSource] = useState(null);
       const [dropTarget, setDropTarget] = useState(null);
       const [showCreditWarning, setShowCreditWarning] = useState(false);
+      const [prereqNotice, setPrereqNotice] = useState(null); // {kind: "blocked" | "warn", lines: [text]}
       const [showHelp, setShowHelp] = useState(false);
       const [studentName, setStudentName] = useState(DEFAULT_NAME);
       const [startTerm, setStartTerm] = useState(DEFAULT_START_TERM);
@@ -1167,6 +1278,15 @@ import { RequirementsBar } from './reqBar.jsx';
           return;
         }
 
+        // Prerequisites: a course may not move before its prerequisites (blocked), or into the same semester as one
+        // of them (allowed after a warning; the course is then shown in red)
+        const prereq = checkPrereqMove(courseData, draggingCourse, dragSource.yearKey, dragSource.semester, targetYearKey, targetSemester);
+        if (prereq.blocked.length) {
+          setPrereqNotice({ kind: "blocked", lines: prereq.blocked });
+          handleDragEnd();
+          return;
+        }
+
         // Calculate current credits in target semester
         const targetSemesterCourses = courseData[targetYearKey][targetSemester];
         const currentCredits = targetSemesterCourses.reduce((sum, c) => sum + c.credits, 0);
@@ -1185,6 +1305,8 @@ import { RequirementsBar } from './reqBar.jsx';
           setIsOverCreditLimit(false);
           setShowCreditWarning(true);
         }
+        // The move is allowed. If it puts a course in the same semester as a prerequisite, say that approval is needed.
+        if (prereq.warned.length) setPrereqNotice({ kind: "warn", lines: prereq.warned });
 
         setCourseData(prev => {
           const newData = JSON.parse(JSON.stringify(prev)); // Deep clone
@@ -1225,6 +1347,7 @@ import { RequirementsBar } from './reqBar.jsx';
       };
 
       const allCourses = Object.values(courseData).flatMap(year => Object.values(year).flat());
+      const prereqIssues = prereqProblems(courseData); // courses shown in red: taken with (or before) a prerequisite
       const completedCredits = allCourses.filter(c => c.taken).reduce((sum, c) => sum + c.credits, 0);
       const totalPlannedCredits = allCourses.reduce((sum, c) => sum + c.credits, 0);
       const progress = Math.round((completedCredits / 124) * 100);
@@ -1295,7 +1418,7 @@ import { RequirementsBar } from './reqBar.jsx';
         minor: { box: "bg-teal-100 border-teal-200", text: "text-teal-700", fill: "bg-teal-600", track: "bg-teal-200" },
       };
 
-      // The sections of the "BSBA Graduation Requirements" bar, left to right: GenEd, SBS Core, major(s), minor(s), Free Electives.
+      // The sections of the "BSBA Degree Requirements" bar, left to right: GenEd, SBS Core, major(s), minor(s), Free Electives.
       // Each section is as wide as its share of the plan's credits. The plan's courses are split between the sections
       // so that every course counts once (a course shared by two programs belongs to the first), so the widths always add up
       // to the whole bar. The numbers inside a section are the usual requirement figures (for example 0/18 for a major).
@@ -1525,13 +1648,13 @@ import { RequirementsBar } from './reqBar.jsx';
                 );
               })}
             </ul>
-            {/* Help: large and prominent at the end of the menu */}
+            {/* Help: at the end of the menu, as wide as the menu text and with the same text size as the menu items */}
             <button
               type="button"
               onClick={() => setShowHelp(true)}
-              className="mt-6 w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white text-lg font-bold shadow-md hover:shadow-lg hover:from-amber-600 hover:to-orange-700 focus:outline-none focus:ring-4 focus:ring-amber-200 transition-shadow"
+              className="mt-6 ml-3 w-36 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white text-sm font-semibold shadow-md hover:shadow-lg hover:from-amber-600 hover:to-orange-700 focus:outline-none focus:ring-4 focus:ring-amber-200 transition-shadow"
             >
-              <span className="w-7 h-7 rounded-full bg-white/25 flex items-center justify-center text-base">?</span>
+              <span className="w-5 h-5 rounded-full bg-white/25 flex items-center justify-center text-xs">?</span>
               Help
             </button>
           </nav>
@@ -1540,9 +1663,9 @@ import { RequirementsBar } from './reqBar.jsx';
             {/* Overview section: majors, minors, degree progress */}
             <section id="overview" className="scroll-mt-28 bg-slate-200/70 rounded-xl p-4 shadow-sm border border-slate-300 mb-6">
             <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-3">Overview</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_250px] gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_250px] gap-4">
               {/* Major(s) Selector */}
-              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+              <div className="min-w-0 bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Selected Major(s)</label>
                 <MultiSelect
                   options={majors}
@@ -1564,7 +1687,7 @@ import { RequirementsBar } from './reqBar.jsx';
               </div>
 
               {/* Minor(s) Selector */}
-              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+              <div className="min-w-0 bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Selected Minor(s)</label>
                 <MultiSelect
                   options={minors}
@@ -1585,7 +1708,7 @@ import { RequirementsBar } from './reqBar.jsx';
               </div>
 
               {/* Progress Ring */}
-              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+              <div className="min-w-0 bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Degree Progress</label>
                 <div className="mt-1 flex items-center gap-4">
                   <div className="relative">
@@ -1604,21 +1727,21 @@ import { RequirementsBar } from './reqBar.jsx';
             </div>
             </section>
 
-            {/* BSBA Graduation Requirements section */}
+            {/* BSBA Degree Requirements section */}
             <section id="requirements" className="scroll-mt-28 bg-slate-200/70 rounded-xl p-4 shadow-sm border border-slate-300 mb-6">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">BSBA Graduation Requirements <span className="normal-case font-medium text-gray-500 tracking-normal">(min. 124 credits)</span></h2>
-                <div className="flex items-center gap-3 text-xs text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-2 bg-gray-500 rounded-sm" style={{ backgroundImage: "repeating-linear-gradient(45deg, rgba(255,255,255,0.55) 0 2px, transparent 2px 4px)" }}></div>
+                <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">BSBA Degree Requirements <span className="normal-case font-medium text-gray-500 tracking-normal">(min. 124 credits)</span></h2>
+                <div className="flex items-center gap-6 text-[14.4px] text-gray-500">
+                  <div className="flex items-center gap-1.5">
+                    <div className="bg-gray-500 rounded-sm" style={{ width: 14.4, height: 9.6, backgroundImage: "repeating-linear-gradient(45deg, rgba(255,255,255,0.55) 0 2px, transparent 2px 4px)" }}></div>
                     <span>Transfer</span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-2 bg-gradient-to-r from-blue-500 via-orange-500 to-purple-500 rounded-sm"></div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="bg-gradient-to-r from-blue-500 via-orange-500 to-purple-500 rounded-sm" style={{ width: 14.4, height: 9.6 }}></div>
                     <span>Suffolk</span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-2 bg-gray-200 rounded-sm border border-gray-300"></div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="bg-gray-200 rounded-sm border border-gray-300" style={{ width: 14.4, height: 9.6 }}></div>
                     <span>Remaining</span>
                   </div>
                 </div>
@@ -1659,10 +1782,10 @@ import { RequirementsBar } from './reqBar.jsx';
               <span className="text-sm font-semibold text-gray-500 mr-2">View:</span>
               <button
                 onClick={() => setActiveYear(null)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all border ${
                   activeYear === null 
-                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md' 
-                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+                    ? 'bg-teal-200 text-teal-900 border-teal-300 shadow-md' 
+                    : 'bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100'
                 }`}
               >
                 All Years
@@ -1702,6 +1825,7 @@ import { RequirementsBar } from './reqBar.jsx';
             <LockContext.Provider value={{ locks, toggle: toggleLock }}>
             <CompletedContext.Provider value={toggleCompleted}>
             <TransferredContext.Provider value={toggleTransferredCard}>
+            <PrereqContext.Provider value={prereqIssues}>
             <SelectContext.Provider value={(rect, id, yearKey, semester) => setMenu({ rect, id, yearKey, semester })}>
             <MoveContext.Provider value={moveCourse}>
             {activeYear === null && (
@@ -1729,6 +1853,7 @@ import { RequirementsBar } from './reqBar.jsx';
             </div>
             </MoveContext.Provider>
             </SelectContext.Provider>
+            </PrereqContext.Provider>
             </TransferredContext.Provider>
             </CompletedContext.Provider>
             <CourseMenu menu={menu} course={menuCourse} usedNames={usedNames} onClose={() => setMenu(null)} onEnter={enterCourse} onReset={resetCourse} onChoose={chooseCourse} />
@@ -1746,6 +1871,9 @@ import { RequirementsBar } from './reqBar.jsx';
               </div>
             </div>
           </footer>
+
+          {/* Prerequisite notice (move blocked, or allowed with a warning) */}
+          <PrereqNoticeModal notice={prereqNotice} onClose={() => setPrereqNotice(null)} />
 
           {/* Quick-start help pop-up */}
           <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />

@@ -47,7 +47,7 @@ export function makePlanPdf(plan) {
 
   // ---------- Header ----------
   font('bold', 18); text('#111827');
-  doc.text('CourseCoach', M, M + 14);
+  doc.textWithLink('CourseCoach', M, M + 14, { url: plan.url }); // the title links to the site
   font('normal', 10); text('#4B5563');
   doc.text(`Four-year plan: ${plan.planLabel}`, M, M + 28);
 
@@ -156,7 +156,7 @@ export function makePlanPdf(plan) {
 
   font('normal', 7); text('#9CA3AF');
   doc.text('CourseCoach is a planning aid, not an official degree audit. Confirm your plan with your faculty advisor or the Undergraduate Academic Advising Center.', W / 2, H - 22, { align: 'center' });
-  doc.text(plan.url, W / 2, H - 12, { align: 'center' });
+  doc.text('\u00A92027 Nesij Huvaj. All rights reserved.', W / 2, H - 12, { align: 'center' });
 
   const safe = plan.planLabel.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'plan';
   doc.save(`CourseCoach-${safe}.pdf`);

@@ -90,13 +90,21 @@ import { useHoverTip } from './hoverTip.jsx';
     const CompletedContext = React.createContext(null); // toggles a box's "Completed?" check box // opens a card's "Select" menu
     const TransferredContext = React.createContext(null); // toggles a box's "Transferred" check box
 
+    // Acronyms shown for majors and minors. Edit here to change one. The internal codes (ECON, IB ...) are NOT changed:
+    // they are used to look up each program's courses. A major or minor that is not listed shows its code.
+    const MAJOR_ACRONYM = { ECON: "BusEcon", FPLAN: "FinPlan", IB: "IntlBus", IBS: "IntStud", SPMT: "SportMgt", SCM: "SupChain" };
+    const MINOR_ACRONYM = { BA: "BusAnlyt", ECON: "BusEcon", BLE: "BusLaw", CFIN: "CorpFin", CYBER: "CyberSec", DMKT: "DigMkt", FINST: "FinInst", FINTECH: "FinTech", GMKT: "GlobMkt", HSI: "HlthSys", IS: "InfoSys", INNOV: "InnovStr", IB: "IntlBus", INV: "Invest", NPM: "NonProf", PSV: "PubServ", RE: "RealEst", SOC: "SocImp", SPMT: "SportMg", SMKT: "SportMkt" };
+    const majorAcr = (code) => MAJOR_ACRONYM[code] || code;
+    const minorAcr = (code) => MINOR_ACRONYM[code] || code;
+    const programAcr = (key) => (key[0] === "M" ? majorAcr : minorAcr)(key.slice(2)); // key looks like "M:ENT" or "m:RE"
+
     // Category text shown on each course box, e.g. "ENT Maj, required" (shortened so the second row of the box fits)
     const categoryText = (c) => {
       if (c.type === "gened") return "General Education";
       if (c.type === "core") return "SBS Core";
       if (c.type === "elective") return "Free Elective";
       const key = (c.programs && c.programs[0]) || (c.type.startsWith("major") ? "M:ENT" : "m:");
-      return `${key.slice(2)} ${key[0] === "M" ? "Maj" : "Min"}, ${c.type.endsWith("Elective") ? "elect." : "required"}`;
+      return `${programAcr(key)} ${key[0] === "M" ? "Maj" : "Min"}, ${c.type.endsWith("Elective") ? "elect." : "required"}`;
     };
     // "Enter manually" is only for boxes where the student has to supply a course: GenEd areas such as Math, SCGP, CI
     // and STE, electives, minors and open "Advanced Course" slots. A box that already names one specific course in the
@@ -141,7 +149,7 @@ import { useHoverTip } from './hoverTip.jsx';
       const lines = [categoryText(c)];
       if (c.dual && c.dual.program) {
         const key = c.dual.program;
-        lines.push(`${key.slice(2)} ${key[0] === "M" ? "Maj" : "Min"}, ${c.dual.type.endsWith("Elective") ? "elect." : "required"}`);
+        lines.push(`${programAcr(key)} ${key[0] === "M" ? "Maj" : "Min"}, ${c.dual.type.endsWith("Elective") ? "elect." : "required"}`);
       }
       return lines;
     };
@@ -396,7 +404,7 @@ import { useHoverTip } from './hoverTip.jsx';
       minorIdxs.forEach((mi, rank) => programs.push({ key: "m:" + minors[mi].code, kind: "minor", code: minors[mi].code, rank, tpl: MINOR_PLANS[minors[mi].code], base: false }));
       const reqType = (pr) => pr.kind === "major" ? "major" : "minor";
       const elType = (pr) => pr.kind === "major" ? "majorElective" : "minorElective";
-      const label = (pr) => `${pr.code} ${pr.kind}`;
+      const label = (pr) => `${programAcr(pr.key)} ${pr.kind}`;
       const elecOf = (pr) => ELECTIVE_LISTS[pr.key] || [];
 
       // --- find overlaps: a required course of A that is also required by B, or eligible as one of B's electives
@@ -494,7 +502,7 @@ import { useHoverTip } from './hoverTip.jsx';
             const item = { id: `${pr.key}-${d.code}`, name: d.code, fullName: COURSE_TITLES[d.code] || d.code, credits: cr, type: elType(pr), programs: [pr.key], rank: pr.rank, taken: false, transferred: false };
             markDual(item, d); place(item, i % Math.max(n, 1)); return;
           }
-          place({ id: `${pr.key}-el${i + 1}`, name: `${pr.code} ${pr.kind === "major" ? "Elective" : "Minor Elective"}`,
+          place({ id: `${pr.key}-el${i + 1}`, name: `${programAcr(pr.key)} ${pr.kind === "major" ? "Elective" : "Minor Elective"}`,
             fullName: `${pr.kind === "major" ? "Major" : "Minor"} elective (${i + 1}/${pr.tpl.slots.length})`, credits: cr, type: elType(pr), programs: [pr.key], rank: pr.rank, taken: false, transferred: false },
             i % Math.max(n, 1));
         });
@@ -553,7 +561,7 @@ import { useHoverTip } from './hoverTip.jsx';
           <button
             type="button"
             onClick={() => setOpen(!open)}
-            className={`w-full px-3 py-2 border rounded-lg font-semibold text-sm text-left flex items-center justify-between gap-2 focus:outline-none focus:ring-2 ${theme.btn}`}
+            className={`w-full px-3 py-[5.5px] border rounded-lg font-semibold text-sm text-left flex items-center justify-between gap-2 focus:outline-none focus:ring-2 ${theme.btn}`}
           >
             <span className="truncate" title={selected.length ? names : undefined}>{selected.length ? names : placeholder}</span>
             <svg className={`w-4 h-4 flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -664,7 +672,7 @@ import { useHoverTip } from './hoverTip.jsx';
           <div className="flex items-baseline justify-between gap-2">
             <div className="flex items-baseline gap-2 min-w-0">
               <span className={`font-semibold shrink-0 ${courseNameColor}`}>{course.name}</span>
-              <span className={`truncate ${flagged ? 'text-red-600' : (gray ? 'text-gray-400' : 'text-gray-500')}`} title={course.fullName}>{course.manual ? course.fullName : (SHORT_TITLES[course.name] || course.fullName)}</span>
+              <span className={`truncate ${course.name === "Business Area" ? "text-[13px]" : ""} ${flagged ? 'text-red-600' : (gray ? 'text-gray-400' : 'text-gray-500')}`} title={course.fullName}>{course.manual ? course.fullName : (SHORT_TITLES[course.name] || course.fullName)}</span>
             </div>
             <div className={`shrink-0 whitespace-nowrap leading-6 ${style.text}`}>
               <span className="text-lg font-bold leading-6">{course.credits}</span>
@@ -1125,7 +1133,8 @@ import { useHoverTip } from './hoverTip.jsx';
     const NAV_ITEMS = [
       { id: "overview", label: "Overview", level: 1 },
       { id: "requirements", label: "BSBA Degree Requirements", level: 1 },
-      { id: "plans", label: "All Years", level: 1 },
+      { id: "plans", label: "Explore Academic Plans", level: 1 },
+      { id: "all-years", label: "All Years", level: 2 },
       { id: "year-1", label: "Year 1", level: 2, year: 1 },
       { id: "year-2", label: "Year 2", level: 2, year: 2 },
       { id: "year-3", label: "Year 3", level: 2, year: 3 },
@@ -1175,12 +1184,12 @@ import { useHoverTip } from './hoverTip.jsx';
         if (activeTabId === id) setActiveTabId("base");
       };
       const tabLabel = (t) => {
-        const base = t.majors.map(i => majors[i].code).join(" + ");
-        const mins = t.minors.length ? ` · Minor: ${t.minors.map(i => minors[i].code).join(", ")}` : "";
+        const base = t.majors.map(i => majorAcr(majors[i].code)).join(" + ");
+        const mins = t.minors.length ? ` · Minor: ${t.minors.map(i => minorAcr(minors[i].code)).join(", ")}` : "";
         return base + mins;
       };
-      const majorLabel = selectedMajors.map(i => majors[i].code).join(" + ");
-      const minorLabel = selectedMinors.map(i => minors[i].code).join(" + ");
+      const majorLabel = selectedMajors.map(i => majorAcr(majors[i].code)).join(" + ");
+      const minorLabel = selectedMinors.map(i => minorAcr(minors[i].code)).join(" + ");
       const [activeYear, setActiveYear] = useState(null); // null = show all years
       const [draggingCourse, setDraggingCourse] = useState(null);
       const [dragSource, setDragSource] = useState(null);
@@ -1441,9 +1450,10 @@ import { useHoverTip } from './hoverTip.jsx';
           const own = allCourses.filter(c => typeOf(c) === kind && ((c.programs || [])[0] || (kind === "major" ? "M:" + majors[selectedMajors[0]].code : "")) === key).reduce((s, c) => s + c.credits, 0);
           if (own <= 0 && st.total <= 0) return;
           const word = kind === "major" ? "Major" : "Minor";
-          const label = `${picks.length > 1 ? `${word} ${n + 1}` : word}: ${item.code}`;
+          const acr = kind === "major" ? majorAcr(item.code) : minorAcr(item.code);
+          const label = picks.length > 1 ? `${kind === "major" ? "Maj." : "Minor "}${n + 1}: ${acr}` : `${word}: ${acr}`;
           const lines = kind === "major" ? [`${item.required} required + ${item.elective} electives`, `${st.total} credits`] : [`${st.total} credits`];
-          segs.push({ key: kind + "-" + mi, label, shortLabel: item.code, href: item.url, grow: own || st.total, taken: st.transfer + st.suffolk, total: st.total, transfer: st.transfer, suffolk: st.suffolk,
+          segs.push({ key: kind + "-" + mi, label, shortLabel: acr, href: item.url, grow: own || st.total, taken: st.transfer + st.suffolk, total: st.total, transfer: st.transfer, suffolk: st.suffolk,
             theme: n === 1 ? themes[1] : themes[0], tipTitle: `${word}: ${item.name}`, tipLines: [...lines, detail(st.transfer + st.suffolk, st.total, st.transfer), "Click the name to open the catalog page"] });
         });
         programSegments("major", selectedMajors, majors, [reqThemes.major, reqThemes.major2]);
@@ -1461,25 +1471,33 @@ import { useHoverTip } from './hoverTip.jsx';
 
       // Left navigation menu: which section is highlighted, and what a click does
       const [activeSection, setActiveSection] = useState("overview");
+      const navLockUntil = useRef(0); // after a click in the menu, the clicked item keeps its highlight while the page scrolls there
       useEffect(() => {
-        // Highlight the section near the top of the screen. A year wins over "All Years" because years sit inside it.
+        // Highlight the last section whose top has scrolled up past a line near the top of the screen. Sections that are
+        // not on the page (a year hidden by the View buttons) are skipped.
         const ids = NAV_ITEMS.map(i => i.id);
-        const visible = new Set();
-        const obs = new IntersectionObserver((entries) => {
-          entries.forEach(e => (e.isIntersecting ? visible.add(e.target.id) : visible.delete(e.target.id)));
-          const year = ids.find(id => id.startsWith("year-") && visible.has(id));
-          const pick = year || ids.find(id => visible.has(id));
-          if (pick) setActiveSection(pick);
-        }, { rootMargin: "-110px 0px -55% 0px" });
-        ids.forEach(id => { const el = document.getElementById(id); if (el) obs.observe(el); });
-        return () => obs.disconnect();
+        let queued = false;
+        const update = () => {
+          queued = false;
+          if (Date.now() < navLockUntil.current) return;
+          let current = ids[0];
+          ids.forEach(id => { const el = document.getElementById(id); if (el && el.getBoundingClientRect().top <= 170) current = id; });
+          setActiveSection(current);
+        };
+        const onScroll = () => { if (!queued) { queued = true; setTimeout(update, 40); } };
+        window.addEventListener("scroll", onScroll, { passive: true });
+        window.addEventListener("resize", onScroll);
+        update();
+        return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); };
       }, [activeYear]);
       const goToSection = (item) => (e) => {
         e.preventDefault();
         // If a single year is showing, switch back to all years first so the target exists
-        const needsAll = activeYear !== null && (item.id === "plans" || (item.year && item.year !== activeYear));
+        const needsAll = activeYear !== null && (item.id === "all-years" || (item.year && item.year !== activeYear));
         if (needsAll) setActiveYear(null);
         setActiveSection(item.id);
+        navLockUntil.current = Date.now() + 1400;
+        setTimeout(() => window.dispatchEvent(new Event("scroll")), 1500);
         const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         setTimeout(() => {
           const el = document.getElementById(item.id);
@@ -1531,29 +1549,29 @@ import { useHoverTip } from './hoverTip.jsx';
                       <>
                         <div className="flex items-center gap-1">
                           <div className="w-2.5 h-2.5 rounded bg-orange-600"></div><div className="w-2.5 h-2.5 rounded bg-yellow-400"></div>
-                          <span className="text-[11px] text-gray-600">Major 1: {majors[selectedMajors[0]].code}</span>
+                          <span className="text-[11px] text-gray-600">Major 1: {majorAcr(majors[selectedMajors[0]].code)}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <div className="w-2.5 h-2.5 rounded bg-[#b98a63]"></div><div className="w-2.5 h-2.5 rounded bg-[#bdb36a]"></div>
-                          <span className="text-[11px] text-gray-600">Major 2: {majors[selectedMajors[1]].code}</span>
+                          <span className="text-[11px] text-gray-600">Major 2: {majorAcr(majors[selectedMajors[1]].code)}</span>
                         </div>
                       </>
                     )}
                     {selectedMinors.length === 1 && (
                       <div className="flex items-center gap-1">
                         <div className="w-2.5 h-2.5 rounded bg-teal-600"></div><div className="w-2.5 h-2.5 rounded bg-cyan-500"></div>
-                        <span className="text-[11px] text-gray-600">Minor: {minors[selectedMinors[0]].code}</span>
+                        <span className="text-[11px] text-gray-600">Minor: {minorAcr(minors[selectedMinors[0]].code)}</span>
                       </div>
                     )}
                     {selectedMinors.length === 2 && (
                       <>
                         <div className="flex items-center gap-1">
                           <div className="w-2.5 h-2.5 rounded bg-teal-600"></div><div className="w-2.5 h-2.5 rounded bg-cyan-500"></div>
-                          <span className="text-[11px] text-gray-600">Minor 1: {minors[selectedMinors[0]].code}</span>
+                          <span className="text-[11px] text-gray-600">Minor 1: {minorAcr(minors[selectedMinors[0]].code)}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <div className="w-2.5 h-2.5 rounded bg-[#6f9a93]"></div><div className="w-2.5 h-2.5 rounded bg-[#7f9fac]"></div>
-                          <span className="text-[11px] text-gray-600">Minor 2: {minors[selectedMinors[1]].code}</span>
+                          <span className="text-[11px] text-gray-600">Minor 2: {minorAcr(minors[selectedMinors[1]].code)}</span>
                         </div>
                       </>
                     )}
@@ -1632,10 +1650,10 @@ import { useHoverTip } from './hoverTip.jsx';
           <nav aria-label="Page sections" className="hidden lg:block w-48 flex-shrink-0 sticky top-28 self-start">
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 px-3">On this page</div>
             <ul className="border-l border-gray-200 space-y-0.5">
-              {NAV_ITEMS.map(item => {
+              {NAV_ITEMS.map((item, idx) => {
                 const active = activeSection === item.id;
                 return (
-                  <li key={item.id}>
+                  <li key={item.id} className={item.level === 1 && idx > 0 ? "mt-2.5 pt-2 border-t border-gray-300/70" : ""}>
                     <a
                       href={"#" + item.id}
                       onClick={goToSection(item)}
@@ -1661,12 +1679,12 @@ import { useHoverTip } from './hoverTip.jsx';
 
           <main className="flex-1 min-w-0">
             {/* Overview section: majors, minors, degree progress */}
-            <section id="overview" className="scroll-mt-28 bg-slate-200/70 rounded-xl p-4 shadow-sm border border-slate-300 mb-6">
-            <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-3">Overview</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_250px] gap-4">
+            <section id="overview" className="scroll-mt-28 bg-slate-200/70 rounded-xl px-4 pt-2.5 pb-2.5 shadow-sm border border-slate-300 mb-6">
+            <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-2">Overview</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.106fr)_minmax(0,1fr)_215px] gap-4">
               {/* Major(s) Selector */}
-              <div className="min-w-0 bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Selected Major(s)</label>
+              <div className="min-w-0 bg-white rounded-xl px-4 pt-2 pb-3.5 shadow-sm border border-gray-100">
+                <label className="text-[14.4px] leading-tight font-semibold text-gray-500 uppercase tracking-wide">Selected Major(s)</label>
                 <MultiSelect
                   options={majors}
                   selected={selectedMajors}
@@ -1677,18 +1695,18 @@ import { useHoverTip } from './hoverTip.jsx';
                   maxSelected={2}
                   renderMeta={(m) => `${m.credits} cr`}
                 />
-                <div className="mt-2 flex flex-wrap gap-1.5">
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
                   {selectedMajors.map((i, n) => (
                     <span key={i} className={`text-xs px-2 py-0.5 rounded-full ${n === 1 ? "bg-[#ecd5bd] text-[#8a4b1e]" : majorTheme.chip}`}>
-                      {majors[i].code}: {majors[i].required} required + {majors[i].elective} electives
+                      {majorAcr(majors[i].code)}: {majors[i].required} required + {majors[i].elective} electives
                     </span>
                   ))}
                 </div>
               </div>
 
               {/* Minor(s) Selector */}
-              <div className="min-w-0 bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Selected Minor(s)</label>
+              <div className="min-w-0 bg-white rounded-xl px-4 pt-2 pb-3.5 shadow-sm border border-gray-100">
+                <label className="text-[14.4px] leading-tight font-semibold text-gray-500 uppercase tracking-wide">Selected Minor(s)</label>
                 <MultiSelect
                   options={minors}
                   selected={selectedMinors}
@@ -1698,7 +1716,7 @@ import { useHoverTip } from './hoverTip.jsx';
                   maxSelected={2}
                   renderMeta={(m) => `${m.credits} cr`}
                 />
-                <div className="mt-2 flex flex-wrap gap-1.5">
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
                   {selectedMinors.length === 0 ? (
                     <span className="text-xs text-gray-400">No minor selected</span>
                   ) : selectedMinors.map((i, n) => (
@@ -1708,8 +1726,8 @@ import { useHoverTip } from './hoverTip.jsx';
               </div>
 
               {/* Progress Ring */}
-              <div className="min-w-0 bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Degree Progress</label>
+              <div className="min-w-0 bg-white rounded-xl px-4 pt-2 pb-3.5 shadow-sm border border-gray-100">
+                <label className="text-[14.4px] leading-tight font-semibold text-gray-500 uppercase tracking-wide">Degree Progress</label>
                 <div className="mt-1 flex items-center gap-4">
                   <div className="relative">
                     <ProgressRing progress={progress} size={60} strokeWidth={6} />
@@ -1719,7 +1737,7 @@ import { useHoverTip } from './hoverTip.jsx';
                   </div>
                   <div>
                     <div className="text-xl font-bold text-gray-800">{completedCredits} <span className="text-sm font-normal text-gray-500">/ 124</span></div>
-                    <div className="text-xs text-gray-500">credits completed</div>
+                    <div className="text-xs leading-tight text-gray-500">credits<br />completed</div>
                   </div>
                 </div>
               </div>
@@ -1752,7 +1770,7 @@ import { useHoverTip } from './hoverTip.jsx';
 
             {/* Plans section: plan tabs, year filter, year rows */}
             <section id="plans" className="scroll-mt-28">
-            <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-3">Plans</h2>
+            <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-3">Explore Academic Plans</h2>
             {/* Plan tabs: one per major/minor combination */}
             <div className="mb-4">
               <div className="flex items-end gap-1 flex-wrap border-b border-gray-200">
@@ -1829,7 +1847,7 @@ import { useHoverTip } from './hoverTip.jsx';
             <SelectContext.Provider value={(rect, id, yearKey, semester) => setMenu({ rect, id, yearKey, semester })}>
             <MoveContext.Provider value={moveCourse}>
             {activeYear === null && (
-              <div className="mb-4">
+              <div id="all-years" className="mb-4 scroll-mt-28">
                 <h3 className="text-xl font-bold text-gray-800 serif">All Years</h3>
                 <p className="text-sm text-gray-500">{allYearsCredits} credits planned across four years</p>
               </div>
@@ -1865,7 +1883,7 @@ import { useHoverTip } from './hoverTip.jsx';
           {/* Footer */}
           <footer className="mt-8 py-6 border-t border-gray-200 bg-white/50">
             <div className="max-w-7xl mx-auto px-6 text-center text-sm text-gray-500">
-              <div>©2025 Nesij Huvaj. All rights reserved.</div>
+              <div>©2027 Nesij Huvaj. All rights reserved.</div>
               <div className="mt-1">
                 This work is licensed under a <a rel="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/" className="text-amber-600 hover:text-amber-700 underline" target="_blank">CC BY-NC-SA</a>.
               </div>

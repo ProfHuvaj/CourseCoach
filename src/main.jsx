@@ -1592,7 +1592,7 @@ import { HelpModal } from './helpContent.jsx';
           {/* Footer */}
           <footer className="mt-8 py-6 border-t border-gray-200 bg-white/50">
             <div className="max-w-7xl mx-auto px-6 text-center text-sm text-gray-500">
-              <div>© 2025 <a href="https://www.theseriousamateur.com/" className="text-amber-600 hover:text-amber-700 underline" target="_blank">the serious amateur dot com</a> by Nesij Huvaj. All rights reserved.</div>
+              <div>©2025 Nesij Huvaj. All rights reserved.</div>
               <div className="mt-1">
                 This work is licensed under a <a rel="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/" className="text-amber-600 hover:text-amber-700 underline" target="_blank">CC BY-NC-SA</a>.
               </div>

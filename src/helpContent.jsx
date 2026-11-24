@@ -48,7 +48,7 @@ const quickSteps = [
   },
   {
     title: 'Choose specific courses',
-    text: 'Click Select on a card to pick a course from the list, mark it Transferred, or use Enter manually.',
+    text: 'Click Select on a card to pick a course from the list, or mark it Transferred. Some cards, such as Math or an elective, also let you type a course in.',
   },
   {
     title: 'Mark what you have finished',
@@ -210,9 +210,12 @@ export function FullHelp() {
           </li>
           <li>
             <strong>Select.</strong> Click <em>Select</em> on a card to open a menu. Choose a course from the list (for
-            categories that have one), choose <em>Transferred</em> if you earned the credit elsewhere, or choose
-            <em> Enter manually…</em> to type your own course code and title. Choose <em>Select</em> again to put the
-            card back as it was.
+            categories that have one), or choose <em>Transferred</em> if you earned the credit elsewhere. Cards where
+            you decide the course, such as Math, other General Education areas and electives, also offer
+            <em> Enter manually…</em> so you can type your own course code and title. Courses the curriculum names
+            exactly, such as WRI-101 or SBS-100, are fixed, so they have no manual entry. The SBS Core
+            <em> Business Area</em> card lets you pick EC-102, ACCT-202 or ISOM-319, unless your major requires one of
+            them. Choose <em>Select</em> again to put a card back as it was.
           </li>
           <li>
             <strong>Completed?</strong> Tick the box when you have finished the course. Its credits then count toward
@@ -292,8 +295,9 @@ export function FullHelp() {
           </Faq>
           <Faq q="The course I need isn't in the Select list.">
             <p>
-              Choose <em>Enter manually…</em> and type the course code and title. Check with an advisor that the
-              course fills the requirement you expect.
+              If the card offers <em>Enter manually…</em> (for example Math, a General Education area or an elective),
+              choose it and type the course code and title. Courses the curriculum names exactly are fixed, so check
+              with an advisor if one does not match your record.
             </p>
           </Faq>
           <Faq q="Dragging doesn't work on my phone or tablet.">

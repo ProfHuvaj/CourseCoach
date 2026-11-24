@@ -90,13 +90,21 @@ import { useHoverTip } from './hoverTip.jsx';
     const CompletedContext = React.createContext(null); // toggles a box's "Completed?" check box // opens a card's "Select" menu
     const TransferredContext = React.createContext(null); // toggles a box's "Transferred" check box
 
+    // Acronyms shown for majors and minors. Edit here to change one. The internal codes (ECON, IB ...) are NOT changed:
+    // they are used to look up each program's courses. A major or minor that is not listed shows its code.
+    const MAJOR_ACRONYM = { ECON: "BusEcon", FPLAN: "FinPlan", IB: "IntlBus", IBS: "IntStud", SPMT: "SportMgt", SCM: "SupChain" };
+    const MINOR_ACRONYM = { BA: "BusAnlyt", ECON: "BusEcon", BLE: "BusLaw", CFIN: "CorpFin", CYBER: "CyberSec", DMKT: "DigMkt", FINST: "FinInst", FINTECH: "FinTech", GMKT: "GlobMkt", HSI: "HlthSys", IS: "InfoSys", INNOV: "InnovStr", IB: "IntlBus", INV: "Invest", NPM: "NonProf", PSV: "PubServ", RE: "RealEst", SOC: "SocImp", SPMT: "SportMg", SMKT: "SportMkt" };
+    const majorAcr = (code) => MAJOR_ACRONYM[code] || code;
+    const minorAcr = (code) => MINOR_ACRONYM[code] || code;
+    const programAcr = (key) => (key[0] === "M" ? majorAcr : minorAcr)(key.slice(2)); // key looks like "M:ENT" or "m:RE"
+
     // Category text shown on each course box, e.g. "ENT Maj, required" (shortened so the second row of the box fits)
     const categoryText = (c) => {
       if (c.type === "gened") return "General Education";
       if (c.type === "core") return "SBS Core";
       if (c.type === "elective") return "Free Elective";
       const key = (c.programs && c.programs[0]) || (c.type.startsWith("major") ? "M:ENT" : "m:");
-      return `${key.slice(2)} ${key[0] === "M" ? "Maj" : "Min"}, ${c.type.endsWith("Elective") ? "elect." : "required"}`;
+      return `${programAcr(key)} ${key[0] === "M" ? "Maj" : "Min"}, ${c.type.endsWith("Elective") ? "elect." : "required"}`;
     };
     // "Enter manually" is only for boxes where the student has to supply a course: GenEd areas such as Math, SCGP, CI
     // and STE, electives, minors and open "Advanced Course" slots. A box that already names one specific course in the
@@ -141,7 +149,7 @@ import { useHoverTip } from './hoverTip.jsx';
       const lines = [categoryText(c)];
       if (c.dual && c.dual.program) {
         const key = c.dual.program;
-        lines.push(`${key.slice(2)} ${key[0] === "M" ? "Maj" : "Min"}, ${c.dual.type.endsWith("Elective") ? "elect." : "required"}`);
+        lines.push(`${programAcr(key)} ${key[0] === "M" ? "Maj" : "Min"}, ${c.dual.type.endsWith("Elective") ? "elect." : "required"}`);
       }
       return lines;
     };
@@ -396,7 +404,7 @@ import { useHoverTip } from './hoverTip.jsx';
       minorIdxs.forEach((mi, rank) => programs.push({ key: "m:" + minors[mi].code, kind: "minor", code: minors[mi].code, rank, tpl: MINOR_PLANS[minors[mi].code], base: false }));
       const reqType = (pr) => pr.kind === "major" ? "major" : "minor";
       const elType = (pr) => pr.kind === "major" ? "majorElective" : "minorElective";
-      const label = (pr) => `${pr.code} ${pr.kind}`;
+      const label = (pr) => `${programAcr(pr.key)} ${pr.kind}`;
       const elecOf = (pr) => ELECTIVE_LISTS[pr.key] || [];
 
       // --- find overlaps: a required course of A that is also required by B, or eligible as one of B's electives
@@ -494,7 +502,7 @@ import { useHoverTip } from './hoverTip.jsx';
             const item = { id: `${pr.key}-${d.code}`, name: d.code, fullName: COURSE_TITLES[d.code] || d.code, credits: cr, type: elType(pr), programs: [pr.key], rank: pr.rank, taken: false, transferred: false };
             markDual(item, d); place(item, i % Math.max(n, 1)); return;
           }
-          place({ id: `${pr.key}-el${i + 1}`, name: `${pr.code} ${pr.kind === "major" ? "Elective" : "Minor Elective"}`,
+          place({ id: `${pr.key}-el${i + 1}`, name: `${programAcr(pr.key)} ${pr.kind === "major" ? "Elective" : "Minor Elective"}`,
             fullName: `${pr.kind === "major" ? "Major" : "Minor"} elective (${i + 1}/${pr.tpl.slots.length})`, credits: cr, type: elType(pr), programs: [pr.key], rank: pr.rank, taken: false, transferred: false },
             i % Math.max(n, 1));
         });
@@ -1176,12 +1184,12 @@ import { useHoverTip } from './hoverTip.jsx';
         if (activeTabId === id) setActiveTabId("base");
       };
       const tabLabel = (t) => {
-        const base = t.majors.map(i => majors[i].code).join(" + ");
-        const mins = t.minors.length ? ` · Minor: ${t.minors.map(i => minors[i].code).join(", ")}` : "";
+        const base = t.majors.map(i => majorAcr(majors[i].code)).join(" + ");
+        const mins = t.minors.length ? ` · Minor: ${t.minors.map(i => minorAcr(minors[i].code)).join(", ")}` : "";
         return base + mins;
       };
-      const majorLabel = selectedMajors.map(i => majors[i].code).join(" + ");
-      const minorLabel = selectedMinors.map(i => minors[i].code).join(" + ");
+      const majorLabel = selectedMajors.map(i => majorAcr(majors[i].code)).join(" + ");
+      const minorLabel = selectedMinors.map(i => minorAcr(minors[i].code)).join(" + ");
       const [activeYear, setActiveYear] = useState(null); // null = show all years
       const [draggingCourse, setDraggingCourse] = useState(null);
       const [dragSource, setDragSource] = useState(null);
@@ -1442,9 +1450,10 @@ import { useHoverTip } from './hoverTip.jsx';
           const own = allCourses.filter(c => typeOf(c) === kind && ((c.programs || [])[0] || (kind === "major" ? "M:" + majors[selectedMajors[0]].code : "")) === key).reduce((s, c) => s + c.credits, 0);
           if (own <= 0 && st.total <= 0) return;
           const word = kind === "major" ? "Major" : "Minor";
-          const label = picks.length > 1 ? `${kind === "major" ? "Maj." : "Minor "}${n + 1}: ${item.code}` : `${word}: ${item.code}`;
+          const acr = kind === "major" ? majorAcr(item.code) : minorAcr(item.code);
+          const label = picks.length > 1 ? `${kind === "major" ? "Maj." : "Minor "}${n + 1}: ${acr}` : `${word}: ${acr}`;
           const lines = kind === "major" ? [`${item.required} required + ${item.elective} electives`, `${st.total} credits`] : [`${st.total} credits`];
-          segs.push({ key: kind + "-" + mi, label, shortLabel: item.code, href: item.url, grow: own || st.total, taken: st.transfer + st.suffolk, total: st.total, transfer: st.transfer, suffolk: st.suffolk,
+          segs.push({ key: kind + "-" + mi, label, shortLabel: acr, href: item.url, grow: own || st.total, taken: st.transfer + st.suffolk, total: st.total, transfer: st.transfer, suffolk: st.suffolk,
             theme: n === 1 ? themes[1] : themes[0], tipTitle: `${word}: ${item.name}`, tipLines: [...lines, detail(st.transfer + st.suffolk, st.total, st.transfer), "Click the name to open the catalog page"] });
         });
         programSegments("major", selectedMajors, majors, [reqThemes.major, reqThemes.major2]);
@@ -1540,29 +1549,29 @@ import { useHoverTip } from './hoverTip.jsx';
                       <>
                         <div className="flex items-center gap-1">
                           <div className="w-2.5 h-2.5 rounded bg-orange-600"></div><div className="w-2.5 h-2.5 rounded bg-yellow-400"></div>
-                          <span className="text-[11px] text-gray-600">Major 1: {majors[selectedMajors[0]].code}</span>
+                          <span className="text-[11px] text-gray-600">Major 1: {majorAcr(majors[selectedMajors[0]].code)}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <div className="w-2.5 h-2.5 rounded bg-[#b98a63]"></div><div className="w-2.5 h-2.5 rounded bg-[#bdb36a]"></div>
-                          <span className="text-[11px] text-gray-600">Major 2: {majors[selectedMajors[1]].code}</span>
+                          <span className="text-[11px] text-gray-600">Major 2: {majorAcr(majors[selectedMajors[1]].code)}</span>
                         </div>
                       </>
                     )}
                     {selectedMinors.length === 1 && (
                       <div className="flex items-center gap-1">
                         <div className="w-2.5 h-2.5 rounded bg-teal-600"></div><div className="w-2.5 h-2.5 rounded bg-cyan-500"></div>
-                        <span className="text-[11px] text-gray-600">Minor: {minors[selectedMinors[0]].code}</span>
+                        <span className="text-[11px] text-gray-600">Minor: {minorAcr(minors[selectedMinors[0]].code)}</span>
                       </div>
                     )}
                     {selectedMinors.length === 2 && (
                       <>
                         <div className="flex items-center gap-1">
                           <div className="w-2.5 h-2.5 rounded bg-teal-600"></div><div className="w-2.5 h-2.5 rounded bg-cyan-500"></div>
-                          <span className="text-[11px] text-gray-600">Minor 1: {minors[selectedMinors[0]].code}</span>
+                          <span className="text-[11px] text-gray-600">Minor 1: {minorAcr(minors[selectedMinors[0]].code)}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <div className="w-2.5 h-2.5 rounded bg-[#6f9a93]"></div><div className="w-2.5 h-2.5 rounded bg-[#7f9fac]"></div>
-                          <span className="text-[11px] text-gray-600">Minor 2: {minors[selectedMinors[1]].code}</span>
+                          <span className="text-[11px] text-gray-600">Minor 2: {minorAcr(minors[selectedMinors[1]].code)}</span>
                         </div>
                       </>
                     )}
@@ -1689,7 +1698,7 @@ import { useHoverTip } from './hoverTip.jsx';
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                   {selectedMajors.map((i, n) => (
                     <span key={i} className={`text-xs px-2 py-0.5 rounded-full ${n === 1 ? "bg-[#ecd5bd] text-[#8a4b1e]" : majorTheme.chip}`}>
-                      {majors[i].code}: {majors[i].required} required + {majors[i].elective} electives
+                      {majorAcr(majors[i].code)}: {majors[i].required} required + {majors[i].elective} electives
                     </span>
                   ))}
                 </div>

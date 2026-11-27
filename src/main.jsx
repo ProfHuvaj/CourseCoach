@@ -1309,6 +1309,10 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
             "Terms before the last two in the record are locked; the last two stay open.",
           ];
           if (s.notInCurriculum.length) lines.push(`Not in the curriculum, placed as free electives: ${s.notInCurriculum.join(", ")}.`);
+          if (recordTransfers.length) {
+            const trCredits = recordTransfers.reduce((sum, t) => sum + t.credits, 0);
+            lines.push(`${recordTransfers.length} transferred courses (${trCredits} credits) are listed under Transferred Credits and count as free electives until you assign them.`);
+          }
           if (test.planAlert) lines.push(test.planAlert);
           if (warnings.length) lines.push(...warnings);
           if (tabs.length > 1) lines.push("Other plan tabs were rebuilt from this record.");

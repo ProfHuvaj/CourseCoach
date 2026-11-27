@@ -108,6 +108,20 @@ export function parseWorkdayRows(rows) {
   rows.slice(headerIdx + 1).forEach(r => {
     const reg = String(r[col.reg] || "").trim();
     if (!reg) return;
+    // a course with no academic period is a transferred course, not assigned to a semester (e.g. "SOC 113 - Introduction
+    // to Sociology (Transfer Credit)"). Waivers carry no credits and are skipped.
+    if (!String(r[col.period] || "").trim()) {
+      const credits = Number(r[col.credits]) || 0;
+      if (credits > 0) {
+        const dash = reg.indexOf(" - ");
+        const codeRaw = (dash >= 0 ? reg.slice(0, dash) : reg).trim();
+        const titleRaw = (dash >= 0 ? reg.slice(dash + 3) : reg).replace(/\s*\(Transfer Credit\)\s*$/i, "").trim();
+        const code = /^[A-Za-z.&]+ \d+$/.test(codeRaw) ? codeRaw.replace(" ", "-") : codeRaw;
+        const tkey = keyOf(codeRaw);
+        if (!transfers.has(tkey)) transfers.set(tkey, { code, title: titleRaw || code, credits });
+      }
+      return;
+    }
     const m = /^([A-Za-z][A-Za-z.&]*)\s*(H?)\s*(\d{2,4})\s*-\s*(.+)$/.exec(reg);
     if (!m) { warnings.push(`Could not read this course: ${reg}`); return; }
     const dept = m[1].toUpperCase(), num = m[3];
@@ -115,11 +129,6 @@ export function parseWorkdayRows(rows) {
     const code = `${dept}-${num}`;
     const inProgress = /\(In Progress\)\s*$/i.test(m[4]);
     const title = m[4].replace(/\s*\(In Progress\)\s*$/i, "").trim();   // full title kept; the screen shortens it
-    // a course with no academic period is a transferred course, not assigned to a semester
-    if (!String(r[col.period] || "").trim()) {
-      if (!transfers.has(key)) transfers.set(key, { code, title, credits: Number(r[col.credits]) || 0 });
-      return;
-    }
     const pm = /^(Fall|Spring)\s+(\d{4})$/i.exec(String(r[col.period] || "").trim());
     if (!pm) { warnings.push(`${code} is in a term other than Fall or Spring and was not imported.`); return; }
     const term = `${pm[1][0].toUpperCase()}${pm[1].slice(1).toLowerCase()} ${pm[2]}`;

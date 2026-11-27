@@ -1565,6 +1565,22 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
         next[`year${n}`] = { fall: [], spring: [], summer: [] };
         return next;
       });
+      const addYearButton = (
+                  <button
+                    type="button"
+                    onClick={addYear}
+                    aria-label="Add year"
+                    title="Add an empty year after the last one"
+                    className="w-28 py-3 rounded-2xl border border-dashed border-amber-300 bg-amber-50/60 text-amber-700 shadow-sm flex items-center justify-center gap-2 hover:bg-white hover:border-amber-400 transition-all"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                    <span className="text-sm font-semibold whitespace-nowrap">Add year</span>
+                  </button>
+      );
+      // The bottom button shows while the last year has courses; an empty last year already shows the button in its place
+      const showBottomAdd = activeYear === null && !(lastYearNum !== undefined && yearIsEmpty(lastYearNum));
       const yearsToShow = activeYear === null
         ? yearNums
         : [activeYear];
@@ -1992,18 +2008,7 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
             <div className="space-y-8">
               {yearsToShow.map(yearNum => (yearNum === lastYearNum && yearIsEmpty(yearNum) ? (
                 <div key={yearNum} id={`year-${yearNum}`} className="flex justify-end scroll-mt-[250px]">
-                  <button
-                    type="button"
-                    onClick={addYear}
-                    aria-label="Add year"
-                    title="Add an empty year after the last one"
-                    className="w-28 py-3 rounded-2xl border border-dashed border-amber-300 bg-amber-50/60 text-amber-700 shadow-sm flex items-center justify-center gap-2 hover:bg-white hover:border-amber-400 transition-all"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M12 5v14M5 12h14" />
-                    </svg>
-                    <span className="text-sm font-semibold whitespace-nowrap">Add year</span>
-                  </button>
+                  {addYearButton}
                 </div>
               ) : (
                 <div key={yearNum} id={`year-${yearNum}`} className="scroll-mt-[250px]">
@@ -2023,6 +2028,9 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
                 </div>
               )))}
             </div>
+            {showBottomAdd && (
+              <div className="flex justify-end mt-6">{addYearButton}</div>
+            )}
             </MoveContext.Provider>
             </SelectContext.Provider>
             </PrereqContext.Provider>

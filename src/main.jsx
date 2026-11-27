@@ -394,10 +394,32 @@ import { readWorkdayRecord, placeRecord } from './recordImport.js';
           const base = y2s[b];
           y2s[b] = { ...base, id: "ec102", name: "EC-102", fullName: COURSE_TITLES["EC-102"] };
           y2s.push({ ...base, id: "acct202", name: "ACCT-202", fullName: COURSE_TITLES["ACCT-202"] });
+          y2s.push({ ...base, id: "isom319", name: "ISOM-319", fullName: COURSE_TITLES["ISOM-319"] });
         }
+      }
+      // From the 2026 cohort: one of EC-102, ACCT-202 or ISOM-319 (the Business Area choice); the other two are free electives
+      if (termToSlot(startTerm) >= termToSlot("Fall 2026") && plan.year2.spring.some(c => c.id === "bizarea")) {
+        const free = (id) => ({ id, name: "Free Elective", fullName: "Any approved course", credits: 3, type: "elective", taken: false, transferred: false });
+        plan.year3.fall.push(free("bizFree1"));
+        plan.year3.spring.push(free("bizFree2"));
+      }
+      // Students from the Fall 2027 cohort follow the 2027 General Education curriculum (lesser credit of any range)
+      if (termToSlot(startTerm) >= termToSlot("Fall 2027")) {
+        const drop = new Set(["math", "wri102", "ci", "scgp", "ste"]);
+        Object.keys(plan).forEach(y => Object.keys(plan[y]).forEach(s => { plan[y][s] = plan[y][s].filter(c => !drop.has(c.id)); }));
+        const gen = (id, name, fullName, credits) => ({ id, name, fullName, credits, type: "gened", taken: false, transferred: false });
+        plan.year1.fall.push(gen("fye1", "FYE 1", "First Year Experience 1", 1), gen("fye2", "FYE 2", "First Year Experience 2 (Career Track 1): CE 200", 1));
+        plan.year1.spring.push(gen("wri2", "Written 2", "Written and Multimodal Communication 2", 4), gen("st", "ST", "Science and Technology", 3), gen("sosc", "SoSc", "Social Science", 3));
+        plan.year2.fall.push(gen("hum", "Hum", "Humanities", 3), gen("bos", "BOS", "Business Organizations & Society", 3), gen("sgp", "SGP", "Social and Global Perspectives (0 credits minimum)", 0), gen("wbl", "WBL", "Work Based Learning (0 credits minimum)", 0));
+        plan.year2.spring.push(gen("sia", "SIA", "Senior Integrative Assignment", 0));
       }
       const cards = () => Object.values(plan).flatMap(y => Object.values(y).flat());
       const majorCodes = majorIdxs.map(i => majors[i].code);
+      // Business Economics majors take STATS-250 in place of STATS-240
+      if (majorCodes.includes("ECON")) {
+        const st = cards().find(c => c.id === "stats240");
+        if (st) { st.name = "STATS-250"; st.fullName = COURSE_TITLES["STATS-250"]; }
+      }
 
       // The generic plan is built around ENT; tag those cards, and release them if ENT is not selected
       cards().forEach(c => {
@@ -1206,7 +1228,7 @@ import { readWorkdayRecord, placeRecord } from './recordImport.js';
       const [gradTerm, setGradTerm] = useState(defaultGradTerm(DEFAULT_START_TERM));
       // Picking a starting term resets the expected graduation term to its default (still editable afterwards)
       // Some course lists differ by starting term (see buildPlan), so changing the term rebuilds the plan tabs when it matters
-      const cohortOf = (t) => (termToSlot(t) < termToSlot("Fall 2026") ? "before Fall 2026" : "Fall 2026 or later");
+      const cohortOf = (t) => ["Fall 2026", "Fall 2027"].map(b => (termToSlot(t) >= termToSlot(b) ? 1 : 0)).join("");
       const changeStartTerm = (t) => {
         const cohortChanged = cohortOf(t) !== cohortOf(startTerm);
         setStartTerm(t);

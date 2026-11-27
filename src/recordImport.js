@@ -12,6 +12,7 @@ const REQUIREMENT_SLOT = {
   "Social, Cultural and Global Perspective Course": (c) => c.name === "SCGP",
   "Science Technology and Engineering Courses: BSBA Degrees": (c) => c.name === "STE",
   "Business Law and Ethics Course": (c) => /^BLE-21[456]$/.test(c.name),
+  "Statistics Course": (c) => /^STATS-2[45]0$/.test(c.name),
   "Entrepreneurship Major Elective Courses": (c) => c.type === "majorElective" && (c.programs || []).includes("M:ENT"),
 };
 

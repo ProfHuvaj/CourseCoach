@@ -1176,10 +1176,10 @@ const semName = (yearKey, sem, start) => `${yearLabelFor(start, Number(yearKey.r
       const buildTab = (majorIdxs, minorIdxs, rec, term = startTerm) => {
         const built = buildPlan(majorIdxs, minorIdxs, term);
         if (!rec) return built;
-        const r = placeRecord(built.courseData, rec.courses, { entryTerm: term, semesters: PLAN_SEMESTERS, bizOptions: BIZ_AREA_OPTIONS });
+        const r = placeRecord(built.courseData, rec.courses, { entryTerm: term, semesters: PLAN_SEMESTERS, bizOptions: BIZ_AREA_OPTIONS, prereqs: PREREQUISITES });
         if (r.error) return { ...built, recordError: r.error };
         renumberFreeElectives(r.plan);
-        return { courseData: r.plan, locks: r.locks, notice: built.notice };
+        return { courseData: r.plan, locks: r.locks, notice: built.notice, planAlert: r.planAlert, gradTerm: r.summary.gradTerm };
       };
       const [newTabId, setNewTabId] = useState(null); // tab that was just added: shown with a brief spotlight
       const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
@@ -1227,7 +1227,10 @@ const semName = (yearKey, sem, start) => `${yearLabelFor(start, Number(yearKey.r
       const [showHelp, setShowHelp] = useState(false);
       const [studentName, setStudentName] = useState(DEFAULT_NAME);
       const [startTerm, setStartTerm] = useState(DEFAULT_START_TERM);
-      const yearLabel = (n) => yearLabelFor(startTerm, n); // year headings follow the starting term (e.g. "2026")
+      const yearLabel = (n) => yearLabelFor(startTerm, n);
+      // Plan years in use (more than four after an overflow); the left menu and filters follow them
+      const yearNums = Object.keys(courseData).map(k => Number(k.replace("year", ""))).filter(n => !Number.isNaN(n)).sort((a, b) => a - b);
+      const navItems = [...NAV_ITEMS.filter(i => !i.year), ...yearNums.map(n => ({ id: `year-${n}`, label: `Year ${n}`, level: 2, year: n }))]; // year headings follow the starting term (e.g. "2026")
       const [gradTerm, setGradTerm] = useState(defaultGradTerm(DEFAULT_START_TERM));
       // Picking a starting term resets the expected graduation term to its default (still editable afterwards)
       // Some course lists differ by starting term (see buildPlan), so changing the term rebuilds the plan tabs when it matters
@@ -1242,6 +1245,8 @@ const semName = (yearKey, sem, start) => `${yearLabelFor(start, Number(yearKey.r
           const r = results.find(x => x.id === tab.id);
           return r ? { ...tab, ...r.built } : tab;
         }));
+        const active = results.find(x => x.id === activeTabId);
+        if (studentRecord && active && active.built.gradTerm) setGradTerm(active.built.gradTerm);
         const failed = results.find(x => x.built.recordError);
         setImportNotice(failed ? { kind: "error", lines: [failed.built.recordError] } : null);
       };
@@ -1252,17 +1257,19 @@ const semName = (yearKey, sem, start) => `${yearLabelFor(start, Number(yearKey.r
         try {
           const { courses, warnings } = await readWorkdayRecord(file);
           if (!courses.length) { setImportNotice({ kind: "error", lines: ["No courses were found in this file."] }); return; }
-          const test = placeRecord(buildPlan(selectedMajors, selectedMinors, startTerm).courseData, courses, { entryTerm: startTerm, semesters: PLAN_SEMESTERS, bizOptions: BIZ_AREA_OPTIONS });
+          const test = placeRecord(buildPlan(selectedMajors, selectedMinors, startTerm).courseData, courses, { entryTerm: startTerm, semesters: PLAN_SEMESTERS, bizOptions: BIZ_AREA_OPTIONS, prereqs: PREREQUISITES });
           if (test.error) { setImportNotice({ kind: "error", lines: [test.error] }); return; }
           const rec = { courses, entryTerm: startTerm, fileName: file.name };
           setStudentRecord(rec);
           setTabs(prev => prev.map(t => ({ ...t, ...buildTab(t.majors, t.minors, rec) })));
           const s = test.summary;
+          setGradTerm(s.gradTerm);
           const lines = [
             `Imported ${file.name}, starting ${startTerm}: ${s.completed} completed courses (${s.completedCredits} credits) and ${s.inProgress} in progress (${s.inProgressCredits} credits).`,
-            "Semesters two or more terms before the latest term in the record are locked.",
+            "Every term up to and including the latest term in the record is locked.",
           ];
           if (s.notInCurriculum.length) lines.push(`Not in the curriculum, placed as free electives: ${s.notInCurriculum.join(", ")}.`);
+          if (test.planAlert) lines.push(test.planAlert);
           if (warnings.length) lines.push(...warnings);
           if (tabs.length > 1) lines.push("Other plan tabs were rebuilt from this record.");
           setImportNotice({ kind: "ok", lines });
@@ -1451,7 +1458,7 @@ const semName = (yearKey, sem, start) => `${yearLabelFor(start, Number(yearKey.r
             totalCredits: totalPlannedCredits, completedCredits, progress,
             notes: activeTab.notice ? activeTab.notice.split("\n") : [],
             url: "https://profhuvaj.github.io/CourseCoach/",
-            years: [1, 2, 3, 4].map(n => {
+            years: yearNums.map(n => {
               const y = courseData[`year${n}`];
               return {
                 number: n, label: yearNames[n - 1], yearText: yearLabel(n),
@@ -1530,7 +1537,7 @@ const semName = (yearKey, sem, start) => `${yearLabelFor(start, Number(yearKey.r
       })();
 
       const yearsToShow = activeYear === null
-        ? [1, 2, 3, 4]
+        ? yearNums
         : [activeYear];
 
       // Total credits across all four years of the active plan (shown under the "All Years" heading)
@@ -1542,7 +1549,7 @@ const semName = (yearKey, sem, start) => `${yearLabelFor(start, Number(yearKey.r
       useEffect(() => {
         // Highlight the last section whose top has scrolled up past a line near the top of the screen. Sections that are
         // not on the page (a year hidden by the View buttons) are skipped.
-        const ids = NAV_ITEMS.map(i => i.id);
+        const ids = navItems.map(i => i.id);
         let queued = false;
         const update = () => {
           queued = false;
@@ -1717,7 +1724,7 @@ const semName = (yearKey, sem, start) => `${yearLabelFor(start, Number(yearKey.r
           <nav aria-label="Page sections" className="hidden lg:block w-48 flex-shrink-0 sticky top-28 self-start">
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 px-3">On this page</div>
             <ul className="border-l border-gray-200 space-y-0.5">
-              {NAV_ITEMS.map((item, idx) => {
+              {navItems.map((item, idx) => {
                 const active = activeSection === item.id;
                 return (
                   <li key={item.id} className={item.level === 1 && idx > 0 ? "mt-2.5 pt-2 border-t border-gray-300/70" : ""}>
@@ -1875,7 +1882,7 @@ const semName = (yearKey, sem, start) => `${yearLabelFor(start, Number(yearKey.r
               >
                 All Years
               </button>
-              {[1, 2, 3, 4].map(year => (
+              {yearNums.map(year => (
                 <button
                   key={year}
                   onClick={() => setActiveYear(year)}
@@ -1928,6 +1935,9 @@ const semName = (yearKey, sem, start) => `${yearLabelFor(start, Number(yearKey.r
               </button>
             </div>
 
+            {activeTab.planAlert && (
+              <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">{activeTab.planAlert}</div>
+            )}
             {importNotice && (
               <div className={`mb-4 rounded-xl border px-4 py-3 text-sm ${importNotice.kind === "error" ? "bg-red-50 border-red-200 text-red-800" : "bg-emerald-50 border-emerald-200 text-emerald-900"}`}>
                 <div className="flex items-start gap-3">

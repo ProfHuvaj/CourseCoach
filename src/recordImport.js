@@ -104,10 +104,24 @@ export function parseWorkdayRows(rows) {
   };
   if (col.status < 0 || col.period < 0 || col.credits < 0) throw new Error("The report is missing the Status, Academic Period or Credits column.");
 
-  const groups = new Map(), warnings = [];
+  const groups = new Map(), warnings = [], transfers = new Map();
   rows.slice(headerIdx + 1).forEach(r => {
     const reg = String(r[col.reg] || "").trim();
     if (!reg) return;
+    // a course with no academic period is a transferred course, not assigned to a semester (e.g. "SOC 113 - Introduction
+    // to Sociology (Transfer Credit)"). Waivers carry no credits and are skipped.
+    if (!String(r[col.period] || "").trim()) {
+      const credits = Number(r[col.credits]) || 0;
+      if (credits > 0) {
+        const dash = reg.indexOf(" - ");
+        const codeRaw = (dash >= 0 ? reg.slice(0, dash) : reg).trim();
+        const titleRaw = (dash >= 0 ? reg.slice(dash + 3) : reg).replace(/\s*\(Transfer Credit\)\s*$/i, "").trim();
+        const code = /^[A-Za-z.&]+ \d+$/.test(codeRaw) ? codeRaw.replace(" ", "-") : codeRaw;
+        const tkey = keyOf(codeRaw);
+        if (!transfers.has(tkey)) transfers.set(tkey, { code, title: titleRaw || code, credits });
+      }
+      return;
+    }
     const m = /^([A-Za-z][A-Za-z.&]*)\s*(H?)\s*(\d{2,4})\s*-\s*(.+)$/.exec(reg);
     if (!m) { warnings.push(`Could not read this course: ${reg}`); return; }
     const dept = m[1].toUpperCase(), num = m[3];
@@ -133,7 +147,7 @@ export function parseWorkdayRows(rows) {
   });
 
   const courses = [...groups.values()].map(g => ({ ...g, requirements: [...g.requirements] }));
-  return { courses, warnings };
+  return { courses, warnings, transfers: [...transfers.values()] };
 }
 
 export async function readWorkdayRecord(file) {
@@ -322,4 +336,21 @@ export function placeRecord(plan, courses, { entryTerm, semesters, bizOptions = 
     ? `The remaining courses do not fit the 8-semester program, so the plan runs to ${gradTerm}. Please check the planned graduation semester (Expected Grad.).`
     : null;
   return { plan: out, locks, summary, planAlert };
+}
+
+// The plan with transferred courses assigned to requirement cards (assigned: card id -> transfer). Such a card is shown as
+// completed with the transfer's credits. Cards already completed from the record are left as they are.
+export function applyTransfers(plan, assigned) {
+  const out = {};
+  Object.keys(plan).forEach(y => {
+    out[y] = {};
+    Object.keys(plan[y]).forEach(k => {
+      out[y][k] = plan[y][k].map(c => {
+        const t = assigned[c.id];
+        if (!t || c.taken) return c;
+        return { ...c, taken: true, transferred: true, credits: t.credits, fullName: t.title };
+      });
+    });
+  });
+  return out;
 }

@@ -150,9 +150,20 @@ const parseTerm = (term) => {
   return s === "Fall" ? { acad: Y, half: 0 } : { acad: Y - 1, half: 1 };
 };
 
-// plan: {year1: {fall: [cards], spring: [cards]}, ...}; semesters: the plan's ordered [year, semester] list.
+// Term name for a position on the plan grid: 0 = the entry Fall, 1 = the following Spring, and so on
+const termOfSlot = (entry, idx) => {
+  const acad = entry.acad + Math.floor(idx / 2);
+  return idx % 2 === 0 ? `Fall ${acad}` : `Spring ${acad + 1}`;
+};
+const yearKeyOf = (idx) => `year${Math.floor(idx / 2) + 1}`;
+const semOf = (idx) => (idx % 2 === 0 ? "fall" : "spring");
+
+// plan: {year1: {fall: [cards], spring: [cards]}, ...}; semesters: the plan's ordered grid (fall, spring, fall, ...).
+// 1. Every course in the record goes to its own term, whatever the credits in that term; those terms are locked.
+// 2. Remaining cards are scheduled from the next term: at most `capacity` credits per term, and a course only after
+//    its prerequisites. More terms are added when the courses do not fit the grid; `planAlert` then asks the student to check.
 // Returns {plan, locks, summary} or {error}.
-export function placeRecord(plan, courses, { entryTerm, semesters, bizOptions = [] }) {
+export function placeRecord(plan, courses, { entryTerm, semesters, bizOptions = [], prereqs = {}, capacity = 16, totalCredits = 124 }) {
   const entry = parseTerm(entryTerm);
   const idxOf = (term) => { const t = parseTerm(term); return (t.acad - entry.acad) * 2 + t.half; };
   const before = courses.filter(c => idxOf(c.term) < 0);
@@ -160,11 +171,16 @@ export function placeRecord(plan, courses, { entryTerm, semesters, bizOptions = 
     return { error: `${before.length} course(s) are in a term before the starting term (${entryTerm}). Set "Started" to the student's first term, then import again.` };
   }
   const latest = Math.max(...courses.map(c => idxOf(c.term)));
-  const lastIdx = semesters.length - 1;
-  const isLocked = (idx) => idx <= latest - 2;   // past semesters: two or more terms before the latest term in the record
+  const isLocked = (idx) => idx <= latest;   // the record's terms are locked, through the latest term in the record
 
   const out = JSON.parse(JSON.stringify(plan));
-  const pool = semesters.flatMap(([y, s]) => (out[y][s] || []).map(card => ({ card, y, s })));
+  const ensure = (idx) => {
+    const y = yearKeyOf(idx), s = semOf(idx);
+    if (!out[y]) out[y] = { fall: [], spring: [], summer: [] };
+    if (!out[y][s]) out[y][s] = [];
+    return [y, s];
+  };
+  const pool = semesters.flatMap(([y, s]) => (out[y][s] || []).map(card => ({ card, y, s, idx: semesters.findIndex(([yy, ss]) => yy === y && ss === s) })));
   semesters.forEach(([y, s]) => { out[y][s] = []; });
   const used = new Set();
   const take = (pred) => pool.find(p => !used.has(p.card) && pred(p.card, p));
@@ -180,10 +196,11 @@ export function placeRecord(plan, courses, { entryTerm, semesters, bizOptions = 
   };
 
   const summary = { completedCredits: 0, inProgressCredits: 0, completed: 0, inProgress: 0, notInCurriculum: [] };
+  const slotByName = new Map();   // card name -> position, for prerequisite checks
   const ordered = [...courses].sort((a, b) => idxOf(a.term) - idxOf(b.term));
   ordered.forEach(course => {
-    const idx = Math.min(idxOf(course.term), lastIdx);
-    const [y, s] = semesters[idx];
+    const idx = idxOf(course.term);
+    const [y, s] = ensure(idx);
     let hit = take(c => keyOf(c.name) === course.key);
     if (!hit && bizOptions.includes(course.code)) hit = take(c => c.name === "Business Area" || bizOptions.includes(c.name));
     if (!hit) {
@@ -205,20 +222,67 @@ export function placeRecord(plan, courses, { entryTerm, semesters, bizOptions = 
     }
     fill(card, course);
     out[y][s].push(card);
+    slotByName.set(card.name, idx);
     if (course.completed) { summary.completed += 1; summary.completedCredits += course.credits; }
     else { summary.inProgress += 1; summary.inProgressCredits += course.credits; }
   });
 
-  // Template cards nobody filled: requirements move to the first open term; unused free-elective placeholders in past terms are dropped
-  const firstOpen = semesters.findIndex((_, idx) => !isLocked(idx));
+  // Cards nobody filled. Free-elective placeholders in the locked terms are dropped; the other cards are scheduled below.
+  let remaining = [];
   pool.forEach(p => {
     if (used.has(p.card)) return;
-    const idx = semesters.findIndex(([y, s]) => y === p.y && s === p.s);
-    if (!isLocked(idx)) out[p.y][p.s].push(p.card);
-    else if (p.card.type !== "elective" && firstOpen >= 0) out[semesters[firstOpen][0]][semesters[firstOpen][1]].push(p.card);
+    if (isLocked(p.idx) && p.card.type === "elective") return;
+    remaining.push(p.card);
+  });
+
+  // Only as many free-elective placeholders as the student still needs for the total (the rest are dropped)
+  const recordCredits = summary.completedCredits + summary.inProgressCredits;
+  const needed = Math.max(0, totalCredits - recordCredits);
+  const requiredLeft = remaining.filter(c => c.type !== "elective").reduce((sum, c) => sum + c.credits, 0);
+  let electiveCredits = 0;
+  remaining = remaining.filter(c => {
+    if (c.type !== "elective") return true;
+    if (requiredLeft + electiveCredits >= needed) return false;
+    electiveCredits += c.credits;
+    return true;
+  });
+
+  // Schedule the remaining cards from the first term after the record
+  let idx = latest + 1, lastUsed = latest;
+  let guard = 0;
+  while (remaining.length && guard < 60) {
+    guard += 1;
+    const [y, s] = ensure(idx);
+    const pending = new Set(remaining.map(c => c.name));
+    // courses whose prerequisites are all placed in earlier terms; larger courses first, so the term fills up well
+    const ready = remaining.filter(card => (prereqs[card.name] || []).every(p => !pending.has(p) && (!slotByName.has(p) || slotByName.get(p) < idx)));
+    ready.sort((a, b) => b.credits - a.credits);
+    let load = 0;
+    ready.forEach(card => {
+      if (load + card.credits > capacity) return;
+      out[y][s].push(card); load += card.credits; slotByName.set(card.name, idx); lastUsed = idx;
+      remaining = remaining.filter(c => c !== card);
+    });
+    idx += 1;
+  }
+  // Safety net (should not happen): anything left goes to the next term, ignoring the limits
+  remaining.forEach(card => { const [y, s] = ensure(idx); out[y][s].push(card); lastUsed = idx; });
+
+  // Drop whole years added after the last term used, if they are empty
+  Object.keys(out).forEach(y => {
+    const firstIdx = (Number(y.replace("year", "")) - 1) * 2;
+    if (firstIdx > lastUsed && Object.values(out[y]).every(list => Array.isArray(list) && list.length === 0)) delete out[y];
   });
 
   const locks = {};
-  semesters.forEach(([y, s], idx) => { if (isLocked(idx)) locks[`${y}.${s}`] = true; });
-  return { plan: out, locks, summary };
+  for (let i = 0; i <= latest; i++) locks[`${yearKeyOf(i)}.${semOf(i)}`] = true;
+
+  const gradTerm = termOfSlot(entry, lastUsed);
+  const overflow = lastUsed >= semesters.length;
+  summary.gradTerm = gradTerm;
+  summary.overflow = overflow;
+  const planAlert = overflow
+    ? `The remaining courses do not fit the 8-semester program, so the plan runs to ${gradTerm}. Please check the planned graduation semester (Expected Grad.).`
+    : null;
+  return { plan: out, locks, summary, planAlert };
 }

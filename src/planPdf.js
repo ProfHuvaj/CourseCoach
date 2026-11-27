@@ -93,7 +93,7 @@ export function makePlanPdf(plan) {
     // row background and year label
     doc.setFillColor(...hex('#F9FAFB')); doc.setDrawColor(...hex('#E5E7EB')); doc.setLineWidth(0.6);
     doc.roundedRect(M, y, W - 2 * M, rowH, 4, 4, 'FD');
-    font('bold', 10); text('#B45309'); doc.text(`Year ${yr.number}`, M + 6, y + 14);
+    font('bold', 10); text('#B45309'); doc.text(yr.yearText || `Year ${yr.number}`, M + 6, y + 14);
     font('normal', 7.5); text('#6B7280');
     doc.text(yr.label, M + 6, y + 24);
     doc.text(`${yr.credits} credits`, M + 6, y + 33);

@@ -164,7 +164,9 @@ import { readWorkdayRecord, placeRecord } from './recordImport.js';
     };
     const SEM_ORDER = ["fall", "spring", "summer"];
     const semIndex = (yearKey, sem) => (Number(yearKey.replace("year", "")) - 1) * 3 + SEM_ORDER.indexOf(sem); // time order of semesters
-    const semName = (yearKey, sem) => `Year ${yearKey.replace("year", "")}, ${sem[0].toUpperCase() + sem.slice(1)}`;
+    // Calendar year of a plan year for a starting term: Fall 2025 starts 2025; Spring 2026 starts 2025 (its academic year)
+const yearLabelFor = (start, n) => { const [s, y] = start.split(" "); const acad = s === "Fall" ? Number(y) : Number(y) - 1; return String(acad + n - 1); };
+const semName = (yearKey, sem, start) => `${yearLabelFor(start, Number(yearKey.replace("year", "")))}, ${sem[0].toUpperCase() + sem.slice(1)}`;
     const NEEDS_APPROVAL = "This is not normally allowed. The student needs written approval from faculty or the SBS dean's office to take a course in the same semester as one of its prerequisites.";
 
     // Where every course of a plan sits: code -> { idx (time order), yearKey, semester }
@@ -193,7 +195,7 @@ import { readWorkdayRecord, placeRecord } from './recordImport.js';
       return parts.join(" ");
     };
     // Would moving `course` to another semester break a prerequisite? Returns the NEW problems the move would cause.
-    const checkPrereqMove = (data, course, fromYear, fromSem, toYear, toSem) => {
+    const checkPrereqMove = (data, course, fromYear, fromSem, toYear, toSem, start) => {
       const after = JSON.parse(JSON.stringify(data));
       after[fromYear][fromSem] = after[fromYear][fromSem].filter(c => c.id !== course.id);
       after[toYear][toSem] = [...after[toYear][toSem], course];
@@ -202,9 +204,9 @@ import { readWorkdayRecord, placeRecord } from './recordImport.js';
       const blocked = [], warned = [];
       Object.entries(will).forEach(([code, p]) => {
         p.before.filter(r => !(was[code] && was[code].before.includes(r))).forEach(r =>
-          blocked.push(`${code} needs ${r} first, but this move would put ${code} in ${semName(whereAfter[code].yearKey, whereAfter[code].semester)} and ${r} in ${semName(whereAfter[r].yearKey, whereAfter[r].semester)}.`));
+          blocked.push(`${code} needs ${r} first, but this move would put ${code} in ${semName(whereAfter[code].yearKey, whereAfter[code].semester, start)} and ${r} in ${semName(whereAfter[r].yearKey, whereAfter[r].semester, start)}.`));
         p.same.filter(r => !(was[code] && was[code].same.includes(r))).forEach(r =>
-          warned.push(`${code} and its prerequisite ${r} would both be taken in ${semName(whereAfter[code].yearKey, whereAfter[code].semester)}.`));
+          warned.push(`${code} and its prerequisite ${r} would both be taken in ${semName(whereAfter[code].yearKey, whereAfter[code].semester, start)}.`));
       });
       return { blocked, warned };
     };
@@ -998,7 +1000,7 @@ import { readWorkdayRecord, placeRecord } from './recordImport.js';
       );
     };
 
-    const YearRow = ({ yearNum, yearData, yearKey, onDragStart, onDragEnd, onDrop, onDragEnter, dropTarget, draggingCourse }) => {
+    const YearRow = ({ yearNum, label, yearData, yearKey, onDragStart, onDragEnd, onDrop, onDragEnter, dropTarget, draggingCourse }) => {
       const yearCredits = Object.values(yearData).flat().reduce((sum, c) => sum + c.credits, 0);
       const allCourses = Object.values(yearData).flat();
 
@@ -1015,12 +1017,12 @@ import { readWorkdayRecord, placeRecord } from './recordImport.js';
         <div className="mb-8">
           {/* Year banner: one line across the Fall, Spring and Summer columns */}
           <div className="flex items-baseline gap-2 mb-4 px-5 py-[8px] rounded-xl bg-gradient-to-r from-amber-100/80 to-orange-100/60 border border-amber-200 shadow-sm">
-            <h2 className="text-xl font-bold text-gray-800">Year {yearNum}</h2>
+            <h2 className="text-xl font-bold text-gray-800">{label}</h2>
             <span className="text-gray-500">- {yearCredits} credits planned</span>
           </div>
           <div className="flex gap-4">
             <SemesterColumn 
-              title={`Year ${yearNum}, Fall`}
+              title={`${label}, Fall`}
               courses={yearData.fall} 
               semesterType="fall" 
               yearKey={yearKey}
@@ -1033,7 +1035,7 @@ import { readWorkdayRecord, placeRecord } from './recordImport.js';
               isYearCompleted={isYearCompleted}
             />
             <SemesterColumn 
-              title={`Year ${yearNum}, Spring`}
+              title={`${label}, Spring`}
               courses={yearData.spring} 
               semesterType="spring" 
               yearKey={yearKey}
@@ -1047,7 +1049,7 @@ import { readWorkdayRecord, placeRecord } from './recordImport.js';
             />
             {showSummer ? (
               <SemesterColumn
-                title={`Year ${yearNum}, Summer`}
+                title={`${label}, Summer`}
                 courses={yearData.summer}
                 semesterType="summer"
                 yearKey={yearKey}
@@ -1064,7 +1066,7 @@ import { readWorkdayRecord, placeRecord } from './recordImport.js';
               <button
                 type="button"
                 aria-expanded="false"
-                aria-label={`Show Year ${yearNum} summer`}
+                aria-label={`Show ${label} summer`}
                 title="Show summer. You can also drop a course here."
                 onClick={() => setSummerOpen(true)}
                 onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
@@ -1225,6 +1227,7 @@ import { readWorkdayRecord, placeRecord } from './recordImport.js';
       const [showHelp, setShowHelp] = useState(false);
       const [studentName, setStudentName] = useState(DEFAULT_NAME);
       const [startTerm, setStartTerm] = useState(DEFAULT_START_TERM);
+      const yearLabel = (n) => yearLabelFor(startTerm, n); // year headings follow the starting term (e.g. "2026")
       const [gradTerm, setGradTerm] = useState(defaultGradTerm(DEFAULT_START_TERM));
       // Picking a starting term resets the expected graduation term to its default (still editable afterwards)
       // Some course lists differ by starting term (see buildPlan), so changing the term rebuilds the plan tabs when it matters
@@ -1353,7 +1356,7 @@ import { readWorkdayRecord, placeRecord } from './recordImport.js';
 
         // Prerequisites: a course may not move before its prerequisites (blocked), or into the same semester as one
         // of them (allowed after a warning; the course is then shown in red)
-        const prereq = checkPrereqMove(courseData, draggingCourse, dragSource.yearKey, dragSource.semester, targetYearKey, targetSemester);
+        const prereq = checkPrereqMove(courseData, draggingCourse, dragSource.yearKey, dragSource.semester, targetYearKey, targetSemester, startTerm);
         if (prereq.blocked.length) {
           setPrereqNotice({ kind: "blocked", lines: prereq.blocked });
           handleDragEnd();
@@ -1451,7 +1454,7 @@ import { readWorkdayRecord, placeRecord } from './recordImport.js';
             years: [1, 2, 3, 4].map(n => {
               const y = courseData[`year${n}`];
               return {
-                number: n, label: yearNames[n - 1],
+                number: n, label: yearNames[n - 1], yearText: yearLabel(n),
                 credits: Object.values(y).flat().reduce((s, c) => s + c.credits, 0),
                 semesters: { fall: y.fall.map(toPdfCourse), spring: y.spring.map(toPdfCourse), summer: y.summer.map(toPdfCourse) },
                 locked: { fall: !!locks[`year${n}.fall`], spring: !!locks[`year${n}.spring`], summer: !!locks[`year${n}.summer`] },
@@ -1724,7 +1727,7 @@ import { readWorkdayRecord, placeRecord } from './recordImport.js';
                       aria-current={active ? "location" : undefined}
                       className={`block -ml-px border-l-2 py-1.5 pr-2 text-sm transition-colors ${item.level === 2 ? "pl-7 text-[13px]" : "pl-3 font-medium"} ${active ? "border-amber-500 text-amber-700 bg-amber-50/80 font-semibold" : "border-transparent text-gray-600 hover:text-gray-900 hover:bg-white/70"}`}
                     >
-                      {item.label}
+                      {item.year ? yearLabel(item.year) : item.label}
                     </a>
                   </li>
                 );
@@ -1882,7 +1885,7 @@ import { readWorkdayRecord, placeRecord } from './recordImport.js';
                       : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
                   }`}
                 >
-                  Year {year}
+                  {yearLabel(year)}
                 </button>
               ))}
               {/* Import record: a Workday academic progress report (.xlsx) */}
@@ -1952,6 +1955,7 @@ import { readWorkdayRecord, placeRecord } from './recordImport.js';
                 <div key={yearNum} id={`year-${yearNum}`} className="scroll-mt-28">
                 <YearRow
                   yearNum={yearNum}
+                  label={yearLabel(yearNum)}
                   yearData={courseData[`year${yearNum}`]}
                   yearKey={`year${yearNum}`}
                   onDragStart={handleDragStart}

@@ -163,7 +163,7 @@ const semOf = (idx) => (idx % 2 === 0 ? "fall" : "spring");
 // 2. Remaining cards are scheduled from the next term: at most `capacity` credits per term, and a course only after
 //    its prerequisites. More terms are added when the courses do not fit the grid; `planAlert` then asks the student to check.
 // Returns {plan, locks, summary} or {error}.
-export function placeRecord(plan, courses, { entryTerm, semesters, bizOptions = [], prereqs = {}, capacity = 16, totalCredits = 124 }) {
+export function placeRecord(plan, courses, { entryTerm, semesters, bizOptions = [], prereqs = {}, capacity = 17, totalCredits = 124 }) {
   const entry = parseTerm(entryTerm);
   const idxOf = (term) => { const t = parseTerm(term); return (t.acad - entry.acad) * 2 + t.half; };
   const before = courses.filter(c => idxOf(c.term) < 0);
@@ -171,7 +171,6 @@ export function placeRecord(plan, courses, { entryTerm, semesters, bizOptions = 
     return { error: `${before.length} course(s) are in a term before the starting term (${entryTerm}). Set "Started" to the student's first term, then import again.` };
   }
   const latest = Math.max(...courses.map(c => idxOf(c.term)));
-  const isLocked = (idx) => idx <= latest;   // the record's terms are locked, through the latest term in the record
 
   const out = JSON.parse(JSON.stringify(plan));
   const ensure = (idx) => {
@@ -197,10 +196,24 @@ export function placeRecord(plan, courses, { entryTerm, semesters, bizOptions = 
 
   const summary = { completedCredits: 0, inProgressCredits: 0, completed: 0, inProgress: 0, notInCurriculum: [] };
   const slotByName = new Map();   // card name -> position, for prerequisite checks
+  // WRI-103 (advanced first-year writing) replaces WRI-101 and WRI-102, which are then not needed
+  if (courses.some(c => c.key === "WRI103")) {
+    pool.forEach(p => { if (p.card.name === "WRI-101" || p.card.name === "WRI-102") used.add(p.card); });
+  }
   const ordered = [...courses].sort((a, b) => idxOf(a.term) - idxOf(b.term));
   ordered.forEach(course => {
     const idx = idxOf(course.term);
     const [y, s] = ensure(idx);
+    if (course.key === "WRI103") {
+      // WRI-103 stays in the general education curriculum
+      const card = { id: "rec-WRI103", name: "WRI-103", fullName: course.title, credits: course.credits, type: "gened", programs: [] };
+      fill(card, course);
+      out[y][s].push(card);
+      slotByName.set(card.name, idx);
+      if (course.completed) { summary.completed += 1; summary.completedCredits += course.credits; }
+      else { summary.inProgress += 1; summary.inProgressCredits += course.credits; }
+      return;
+    }
     let hit = take(c => keyOf(c.name) === course.key);
     if (!hit && bizOptions.includes(course.code)) hit = take(c => c.name === "Business Area" || bizOptions.includes(c.name));
     if (!hit) {
@@ -231,7 +244,7 @@ export function placeRecord(plan, courses, { entryTerm, semesters, bizOptions = 
   let remaining = [];
   pool.forEach(p => {
     if (used.has(p.card)) return;
-    if (isLocked(p.idx) && p.card.type === "elective") return;
+    if (p.idx <= latest && p.card.type === "elective") return;
     remaining.push(p.card);
   });
 
@@ -247,19 +260,35 @@ export function placeRecord(plan, courses, { entryTerm, semesters, bizOptions = 
     return true;
   });
 
-  // Schedule the remaining cards from the first term after the record
+  // Schedule the remaining cards from the first term after the record:
+  //  - lower-level courses first (100, 200, 300, 400); STE/ST and SCGP/SGP are flexible; free electives come last
+  //  - at most one required course per major in a term (one per major when double majoring)
+  //  - capstones (XYZ-419) and SIB-429 are not placed before the senior year
+  //  - at most `capacity` credits in a term; a course only after its prerequisites
+  const FLEXIBLE = new Set(["STE", "ST", "SCGP", "SGP"]);
+  const SENIOR_IDX = 6;   // year 4, Fall (six terms after the start)
+  const levelOf = (card) => { const m = /-(d)dd$/.exec(card.name || ""); return m ? Number(m[1]) : 2.5; };
+  const rankOf = (card) => (card.type === "elective" ? 9 : FLEXIBLE.has(card.name) ? 8 : levelOf(card));
+  const isCapstone = (card) => /-419$/.test(card.name) || card.name === "SIB-429";
+  const earliestOf = (card) => (isCapstone(card) ? Math.max(latest + 1, SENIOR_IDX) : latest + 1);
+  remaining.sort((a, b) => rankOf(a) - rankOf(b));   // stable: template order within a level
+
   let idx = latest + 1, lastUsed = latest;
   let guard = 0;
   while (remaining.length && guard < 60) {
     guard += 1;
     const [y, s] = ensure(idx);
     const pending = new Set(remaining.map(c => c.name));
-    // courses whose prerequisites are all placed in earlier terms; larger courses first, so the term fills up well
-    const ready = remaining.filter(card => (prereqs[card.name] || []).every(p => !pending.has(p) && (!slotByName.has(p) || slotByName.get(p) < idx)));
-    ready.sort((a, b) => b.credits - a.credits);
+    const ready = remaining.filter(card => earliestOf(card) <= idx && (prereqs[card.name] || []).every(p => !pending.has(p) && (!slotByName.has(p) || slotByName.get(p) < idx)));
     let load = 0;
+    const majorsThisTerm = new Set();
     ready.forEach(card => {
       if (load + card.credits > capacity) return;
+      if (card.type === "major") {
+        const key = (card.programs || ["major"])[0];
+        if (majorsThisTerm.has(key)) return;
+        majorsThisTerm.add(key);
+      }
       out[y][s].push(card); load += card.credits; slotByName.set(card.name, idx); lastUsed = idx;
       remaining = remaining.filter(c => c !== card);
     });
@@ -275,7 +304,7 @@ export function placeRecord(plan, courses, { entryTerm, semesters, bizOptions = 
   });
 
   const locks = {};
-  for (let i = 0; i <= latest; i++) locks[`${yearKeyOf(i)}.${semOf(i)}`] = true;
+  for (let i = 0; i <= latest - 2; i++) locks[`${yearKeyOf(i)}.${semOf(i)}`] = true;
 
   const gradTerm = termOfSlot(entry, lastUsed);
   const overflow = lastUsed >= semesters.length;

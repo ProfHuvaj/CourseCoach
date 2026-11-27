@@ -1175,6 +1175,21 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
       const [studentRecord, setStudentRecord] = useState(null); // {courses, entryTerm, fileName}
       const [importNotice, setImportNotice] = useState(null);   // {kind: "ok" | "error", lines: [text]}
       const fileInputRef = useRef(null);
+      // The pinned requirements bar sits directly under the header's bottom line, whatever the header's height
+      const headerRef = useRef(null);
+      const [headerH, setHeaderH] = useState(112);
+      useEffect(() => {
+        const el = headerRef.current;
+        if (!el) return;
+        const measure = () => setHeaderH(el.getBoundingClientRect().height);
+        measure();
+        const ro = new ResizeObserver(measure);
+        ro.observe(el);
+        window.addEventListener("resize", measure);
+        window.addEventListener("load", measure);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
+        return () => { ro.disconnect(); window.removeEventListener("resize", measure); window.removeEventListener("load", measure); };
+      }, []);
       const buildTab = (majorIdxs, minorIdxs, rec, term = startTerm) => {
         const built = buildPlan(majorIdxs, minorIdxs, term);
         if (!rec) return built;
@@ -1596,7 +1611,7 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
       return (
         <div className="min-h-screen">
           {/* Header */}
-          <header className="bg-white/80 backdrop-blur-lg border-b border-gray-200 sticky top-0 z-50">
+          <header ref={headerRef} className="bg-white/80 backdrop-blur-lg border-b border-gray-200 sticky top-0 z-50">
             <div className="max-w-7xl mx-auto px-6 lg:pr-[41px] py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-stretch gap-3 flex-shrink-0">
@@ -1834,7 +1849,7 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
             </section>
 
             {/* BSBA Degree Requirements section */}
-            <section id="requirements" className="sticky top-28 z-40 scroll-mt-28 bg-slate-200 rounded-xl p-4 shadow-md border border-slate-300 mb-6">
+            <section id="requirements" style={{ top: headerH }} className="sticky z-40 scroll-mt-28 bg-slate-200 rounded-xl p-4 shadow-md border border-slate-300 mb-6">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">BSBA Degree Requirements <span className="normal-case font-medium text-gray-500 tracking-normal">(min. 124 credits)</span></h2>
                 <div className="flex items-center gap-6 text-[14.4px] text-gray-500">

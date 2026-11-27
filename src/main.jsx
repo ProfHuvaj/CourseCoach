@@ -401,12 +401,6 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
           y2s.push({ ...base, id: "isom319", name: "ISOM-319", fullName: COURSE_TITLES["ISOM-319"] });
         }
       }
-      // From the 2026 cohort: one of EC-102, ACCT-202 or ISOM-319 (the Business Area choice); the other two are free electives
-      if (termToSlot(startTerm) >= termToSlot("Fall 2026") && plan.year2.spring.some(c => c.id === "bizarea")) {
-        const free = (id) => ({ id, name: "Free Elective", fullName: "Any approved course", credits: 3, type: "elective", taken: false, transferred: false });
-        plan.year3.fall.push(free("bizFree1"));
-        plan.year3.spring.push(free("bizFree2"));
-      }
       // Students from the Fall 2027 cohort follow the 2027 General Education curriculum (lesser credit of any range)
       if (termToSlot(startTerm) >= termToSlot("Fall 2027")) {
         const drop = new Set(["wri102", "ci", "scgp", "ste"]);
@@ -567,6 +561,15 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
         const cr = overflow.reduce((sum, c) => sum + c.credits, 0);
         notes.push(`${overflow.length} course${overflow.length > 1 ? "s" : ""} (${cr} credits) did not fit in the free-elective slots of the regular semesters and ${overflow.length > 1 ? "were" : "was"} placed in Year 3, Summer: ${overflow.map(c => c.name).join(", ")}.`);
       }
+      // Free electives make up the rest of the 124 credits, and no more (double majors need fewer)
+      const nonFreeCredits = cards().filter(c => c.type !== "elective").reduce((sum, c) => sum + c.credits, 0);
+      const freeNeeded = Math.max(0, 124 - nonFreeCredits);
+      const freeCards = cards().filter(c => c.type === "elective");
+      let freeKept = 0;
+      const drop = new Set(freeCards.filter(c => { if (freeKept < freeNeeded) { freeKept += c.credits; return false; } return true; }));
+      if (drop.size) Object.values(plan).forEach(y => Object.keys(y).forEach(k => { y[k] = y[k].filter(c => !drop.has(c)); }));
+      for (let n = 1; freeKept < freeNeeded; n++) { plan.year4.spring.push({ id: "freeFill" + n, name: "Free Elective", fullName: "Any approved course", credits: 3, type: "elective", taken: false, transferred: false }); freeKept += 3; }
+
       return { courseData: plan, notice: notes.join("\n") };
     };
 

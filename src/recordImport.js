@@ -259,6 +259,12 @@ export function placeRecord(plan, courses, { entryTerm, semesters, bizOptions = 
     electiveCredits += c.credits;
     return true;
   });
+  // The grid may have too few free-elective placeholders for the total (e.g. a single major): add them, 3 credits each
+  let deficit = needed - (requiredLeft + electiveCredits);
+  for (let n = 1; deficit > 0; n++) {
+    remaining.push({ id: `rec-free-${n}`, name: "Free Elective", fullName: "Any approved course", credits: 3, type: "elective", programs: [] });
+    deficit -= 3;
+  }
 
   // Schedule the remaining cards from the first term after the record:
   //  - lower-level courses first (100, 200, 300, 400); STE/ST and SCGP/SGP are flexible; free electives come last

@@ -6,6 +6,7 @@ import { HelpModal } from './helpContent.jsx';
 import { BrandBadge, BrandBlock } from './brand.jsx';
 import { RequirementsBar } from './reqBar.jsx';
 import { useHoverTip } from './hoverTip.jsx';
+import { readWorkdayRecord, placeRecord } from './recordImport.js';
 
     const initialCourseData = {
       year1: {
@@ -351,7 +352,7 @@ import { useHoverTip } from './hoverTip.jsx';
     const renumberFreeElectives = (plan) => {
       let n = 0;
       Object.keys(plan).sort().forEach(y => ["fall", "spring", "summer"].forEach(s => {
-        (plan[y][s] || []).forEach(c => { if (c.type === "elective") { n += 1; c.name = `Free Elective ${n}`; c.fullName = "Any approved course"; } });
+        (plan[y][s] || []).forEach(c => { if (c.type === "elective" && !c.recordCode) { n += 1; c.name = `Free Elective ${n}`; c.fullName = "Any approved course"; } });
       }));
       return plan;
     };
@@ -1127,6 +1128,18 @@ import { useHoverTip } from './hoverTip.jsx';
       const entIdx = majors.findIndex(m => m.code === "ENT");
       const [tabs, setTabs] = useState(() => [{ id: "base", majors: [entIdx], minors: [], ...buildPlan([entIdx], []) }]);
       const [activeTabId, setActiveTabId] = useState("base");
+      // The imported student record (if any) is applied to every plan tab, including tabs opened later
+      const [studentRecord, setStudentRecord] = useState(null); // {courses, entryTerm, fileName}
+      const [importNotice, setImportNotice] = useState(null);   // {kind: "ok" | "error", lines: [text]}
+      const fileInputRef = useRef(null);
+      const buildTab = (majorIdxs, minorIdxs, rec) => {
+        const built = buildPlan(majorIdxs, minorIdxs);
+        if (!rec) return built;
+        const r = placeRecord(built.courseData, rec.courses, { entryTerm: rec.entryTerm, semesters: PLAN_SEMESTERS, bizOptions: BIZ_AREA_OPTIONS });
+        if (r.error) return built;
+        renumberFreeElectives(r.plan);
+        return { courseData: r.plan, locks: r.locks, notice: built.notice };
+      };
       const [newTabId, setNewTabId] = useState(null); // tab that was just added: shown with a brief spotlight
       const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
       const selectedMajors = activeTab.majors;
@@ -1140,7 +1153,7 @@ import { useHoverTip } from './hoverTip.jsx';
         const found = tabs.find(t => planSignature(t.majors, t.minors) === sig);
         if (found) { setActiveTabId(found.id); return; }
         const id = "tab" + Date.now();
-        setTabs(prev => [...prev, { id, majors: majorIdxs, minors: minorIdxs, ...buildPlan(majorIdxs, minorIdxs) }]);
+        setTabs(prev => [...prev, { id, majors: majorIdxs, minors: minorIdxs, ...buildTab(majorIdxs, minorIdxs, studentRecord) }]);
         setNewTabId(id);
         setTimeout(() => setNewTabId(cur => (cur === id ? null : cur)), 1800);
         setActiveTabId(id);
@@ -1177,6 +1190,30 @@ import { useHoverTip } from './hoverTip.jsx';
       // Picking a starting term resets the expected graduation term to its default (still editable afterwards)
       const changeStartTerm = (t) => { setStartTerm(t); setGradTerm(defaultGradTerm(t)); };
       const [isOverCreditLimit, setIsOverCreditLimit] = useState(false);
+
+      // Import record: reads a Workday progress report (.xlsx). Every plan tab is rebuilt from its template with the record applied.
+      const importRecord = async (file) => {
+        try {
+          const { courses, warnings } = await readWorkdayRecord(file);
+          if (!courses.length) { setImportNotice({ kind: "error", lines: ["No courses were found in this file."] }); return; }
+          const test = placeRecord(buildPlan(selectedMajors, selectedMinors).courseData, courses, { entryTerm: startTerm, semesters: PLAN_SEMESTERS, bizOptions: BIZ_AREA_OPTIONS });
+          if (test.error) { setImportNotice({ kind: "error", lines: [test.error] }); return; }
+          const rec = { courses, entryTerm: startTerm, fileName: file.name };
+          setStudentRecord(rec);
+          setTabs(prev => prev.map(t => ({ ...t, ...buildTab(t.majors, t.minors, rec) })));
+          const s = test.summary;
+          const lines = [
+            `Imported ${file.name}, starting ${startTerm}: ${s.completed} completed courses (${s.completedCredits} credits) and ${s.inProgress} in progress (${s.inProgressCredits} credits).`,
+            "Semesters two or more terms before the latest term in the record are locked.",
+          ];
+          if (s.notInCurriculum.length) lines.push(`Not in the curriculum, placed as free electives: ${s.notInCurriculum.join(", ")}.`);
+          if (warnings.length) lines.push(...warnings);
+          if (tabs.length > 1) lines.push("Other plan tabs were rebuilt from this record.");
+          setImportNotice({ kind: "ok", lines });
+        } catch (err) {
+          setImportNotice({ kind: "error", lines: [err.message || "The file could not be read."] });
+        }
+      };
 
       // Drag handlers
       const handleDragStart = (e, course, yearKey, semester) => {
@@ -1795,6 +1832,28 @@ import { useHoverTip } from './hoverTip.jsx';
                   Year {year}
                 </button>
               ))}
+              {/* Import record: a Workday academic progress report (.xlsx) */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) importRecord(f); }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                aria-label="Import a Workday academic progress report (.xlsx)"
+                title="Import a Workday academic progress report (.xlsx)"
+                className="ml-auto flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-gray-700 bg-white border border-gray-300 shadow-sm hover:bg-gray-50 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                Import record
+              </button>
               {/* Print: saves the plan in the current tab as a one-page PDF */}
               <button
                 type="button"
@@ -1802,7 +1861,7 @@ import { useHoverTip } from './hoverTip.jsx';
                 disabled={printing}
                 aria-label="Save this plan as a one-page PDF"
                 title="Save this plan as a one-page PDF"
-                className="ml-auto flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-purple-800 shadow-md hover:from-purple-700 hover:to-purple-900 disabled:opacity-60 disabled:cursor-wait transition-all"
+                className="ml-3 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-purple-800 shadow-md hover:from-purple-700 hover:to-purple-900 disabled:opacity-60 disabled:cursor-wait transition-all"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
                   <polyline points="6 9 6 2 18 2 18 9" />
@@ -1812,6 +1871,15 @@ import { useHoverTip } from './hoverTip.jsx';
                 {printing ? "Preparing…" : "Print"}
               </button>
             </div>
+
+            {importNotice && (
+              <div className={`mb-4 rounded-xl border px-4 py-3 text-sm ${importNotice.kind === "error" ? "bg-red-50 border-red-200 text-red-800" : "bg-emerald-50 border-emerald-200 text-emerald-900"}`}>
+                <div className="flex items-start gap-3">
+                  <div className="flex-1 space-y-1">{importNotice.lines.map((l, i) => <p key={i}>{l}</p>)}</div>
+                  <button type="button" onClick={() => setImportNotice(null)} aria-label="Dismiss this message" className="shrink-0 text-gray-500 hover:text-gray-800">×</button>
+                </div>
+              </div>
+            )}
 
             {/* Year Rows */}
             <LockContext.Provider value={{ locks, toggle: toggleLock }}>

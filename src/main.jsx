@@ -1461,7 +1461,7 @@ const semName = (yearKey, sem, start) => `${yearLabelFor(start, Number(yearKey.r
             years: yearNums.map(n => {
               const y = courseData[`year${n}`];
               return {
-                number: n, label: yearNames[n - 1], yearText: yearLabel(n),
+                number: n, label: yearNames[n - 1] || "", yearText: yearLabel(n),
                 credits: Object.values(y).flat().reduce((s, c) => s + c.credits, 0),
                 semesters: { fall: y.fall.map(toPdfCourse), spring: y.spring.map(toPdfCourse), summer: y.summer.map(toPdfCourse) },
                 locked: { fall: !!locks[`year${n}.fall`], spring: !!locks[`year${n}.spring`], summer: !!locks[`year${n}.summer`] },

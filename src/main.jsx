@@ -409,12 +409,12 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
       }
       // Students from the Fall 2027 cohort follow the 2027 General Education curriculum (lesser credit of any range)
       if (termToSlot(startTerm) >= termToSlot("Fall 2027")) {
-        const drop = new Set(["math", "wri102", "ci", "scgp", "ste"]);
+        const drop = new Set(["wri102", "ci", "scgp", "ste"]);
         Object.keys(plan).forEach(y => Object.keys(plan[y]).forEach(s => { plan[y][s] = plan[y][s].filter(c => !drop.has(c.id)); }));
         const gen = (id, name, fullName, credits) => ({ id, name, fullName, credits, type: "gened", taken: false, transferred: false });
-        plan.year1.fall.push(gen("fye1", "FYE 1", "First Year Experience 1", 1), gen("fye2", "FYE 2", "First Year Experience 2 (Career Track 1): CE 200", 1));
+        plan.year1.fall.push(gen("fye1", "FYE 1", "First Year Experience 1", 1), gen("csd1", "CSD 1", "CSD Track 1 (Career Exploration): CE 100", 1), gen("csd2", "CSD 2", "CSD Track 2 (Career Navigation): CE 200", 1));
         plan.year1.spring.push(gen("wri2", "Written 2", "Written and Multimodal Communication 2", 4), gen("st", "ST", "Science and Technology", 3), gen("sosc", "SoSc", "Social Science", 3));
-        plan.year2.fall.push(gen("hum", "Hum", "Humanities", 3), gen("bos", "BOS", "Business Organizations & Society", 3), gen("sgp", "SGP", "Social and Global Perspectives (0 credits minimum)", 0), gen("wbl", "WBL", "Work Based Learning (0 credits minimum)", 0));
+        plan.year2.fall.push(gen("hum", "Hum", "Humanities", 4), gen("bos", "BOS", "Business Organizations & Society", 3), gen("sgp", "SGP", "Social and Global Perspectives (0 credits minimum)", 0), gen("wbl", "WBL", "CSD Track 3: Work Based Learning (0 credits minimum)", 0), gen("csd4", "CSD 4", "CSD Track 4: Transitional Assignment in Major", 0));
         plan.year2.spring.push(gen("sia", "SIA", "Senior Integrative Assignment", 0));
       }
       const cards = () => Object.values(plan).flatMap(y => Object.values(y).flat());

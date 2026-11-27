@@ -1266,7 +1266,7 @@ const semName = (yearKey, sem, start) => `${yearLabelFor(start, Number(yearKey.r
           setGradTerm(s.gradTerm);
           const lines = [
             `Imported ${file.name}, starting ${startTerm}: ${s.completed} completed courses (${s.completedCredits} credits) and ${s.inProgress} in progress (${s.inProgressCredits} credits).`,
-            "Every term up to and including the latest term in the record is locked.",
+            "Terms before the last two in the record are locked; the last two stay open.",
           ];
           if (s.notInCurriculum.length) lines.push(`Not in the curriculum, placed as free electives: ${s.notInCurriculum.join(", ")}.`);
           if (test.planAlert) lines.push(test.planAlert);

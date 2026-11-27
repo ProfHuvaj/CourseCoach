@@ -309,6 +309,8 @@ export function placeRecord(plan, courses, { entryTerm, semesters, bizOptions = 
     if (firstIdx > lastUsed && Object.values(out[y]).every(list => Array.isArray(list) && list.length === 0)) delete out[y];
   });
 
+  Object.keys(out).forEach(y => { if (Number(y.replace("year", "")) < 1) delete out[y]; });
+
   const locks = {};
   for (let i = 0; i <= latest - 2; i++) locks[`${yearKeyOf(i)}.${semOf(i)}`] = true;
 

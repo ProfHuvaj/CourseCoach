@@ -11,8 +11,8 @@ const REQUIREMENT_SLOT = {
   "Creativity and Innovation Course": (c) => c.name === "CI",
   "Social, Cultural and Global Perspective Course": (c) => c.name === "SCGP",
   "Science Technology and Engineering Courses: BSBA Degrees": (c) => c.name === "STE",
-  "Business Law and Ethics Course": (c) => c.name === "BLE-216",
-  "Entrepreneurship Major Elective Courses": (c) => c.type === "majorElective",
+  "Business Law and Ethics Course": (c) => /^BLE-21[456]$/.test(c.name),
+  "Entrepreneurship Major Elective Courses": (c) => c.type === "majorElective" && (c.programs || []).includes("M:ENT"),
 };
 
 const keyOf = (text) => String(text).replace(/[^A-Za-z0-9]/g, "").toUpperCase();

@@ -10,7 +10,7 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 // course code, e.g. "ENT"), then only "taken/total", and when even that does not fit it shows no text at all
 // (hover the section to read everything).
 
-function ProgressBar({ transfer, suffolk, total, fill, track }) {
+function ProgressBar({ transfer, suffolk, total, fill, track, req, fillDark, fillLight }) {
   const safe = total || 1;
   const transferPct = Math.min(100, (transfer / safe) * 100);
   const suffolkPct = Math.min(100 - transferPct, (suffolk / safe) * 100);
@@ -22,7 +22,17 @@ function ProgressBar({ transfer, suffolk, total, fill, track }) {
           style={{ width: `${transferPct}%`, backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.55) 0 2px, transparent 2px 4px)' }}
         ></div>
       )}
-      {suffolk > 0 && <div className={`h-full ${fill} transition-all duration-300`} style={{ width: `${suffolkPct}%` }}></div>}
+      {suffolk > 0 && req === undefined && <div className={`h-full ${fill} transition-all duration-300`} style={{ width: `${suffolkPct}%` }}></div>}
+      {suffolk > 0 && req !== undefined && (() => {
+        // major: completed required credits in the darker shade, completed elective credits in the lighter shade
+        const reqPct = Math.min(suffolkPct, (Math.min(suffolk, req) / safe) * 100);
+        return (
+          <>
+            {reqPct > 0 && <div className={`h-full ${fillDark} transition-all duration-300`} style={{ width: `${reqPct}%` }}></div>}
+            {suffolkPct - reqPct > 0 && <div className={`h-full ${fillLight} transition-all duration-300`} style={{ width: `${suffolkPct - reqPct}%` }}></div>}
+          </>
+        );
+      })()}
     </div>
   );
 }
@@ -77,7 +87,7 @@ function Segment({ seg, align }) {
         </div>
       )}
       <div className={mode === 'none' ? '' : 'mt-1.5'}>
-        <ProgressBar transfer={seg.transfer} suffolk={seg.suffolk} total={seg.total} fill={theme.fill} track={theme.track} />
+        <ProgressBar transfer={seg.transfer} suffolk={seg.suffolk} total={seg.total} fill={theme.fill} track={theme.track} req={seg.suffolkReq} fillDark={theme.fillDark} fillLight={theme.fillLight} />
       </div>
 
       </div>

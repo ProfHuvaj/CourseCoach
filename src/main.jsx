@@ -1019,8 +1019,8 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
         <div className="mb-8">
           {/* Year banner: one line across the Fall, Spring and Summer columns */}
           <div className="flex items-baseline gap-2 mb-4 px-5 py-[8px] rounded-xl bg-gradient-to-r from-amber-100/80 to-orange-100/60 border border-amber-200 shadow-sm">
-            <h2 className="text-xl font-bold text-gray-800">Year {yearNum}</h2>
-            <span className="text-gray-500">- {yearCredits} credits planned</span>
+            <h2 className="text-xl font-bold text-gray-800">Academic Year {label} - {Number(label) + 1}</h2>
+            <span className="text-gray-500">| {yearCredits} credits planned</span>
           </div>
           <div className="flex gap-4">
             <SemesterColumn 
@@ -1497,9 +1497,9 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
       const reqThemes = {
         gened: { box: "bg-gray-200 border-gray-300", text: "text-gray-800", fill: "bg-gray-700", track: "bg-gray-300" },
         core: { box: "bg-blue-100 border-blue-200", text: "text-blue-700", fill: "bg-blue-600", track: "bg-blue-200" },
-        major: { box: "bg-orange-100 border-orange-200", text: "text-orange-700", fill: "bg-orange-600", track: "bg-orange-200" },
+        major: { box: "bg-orange-100 border-orange-200", text: "text-orange-700", fill: "bg-orange-600", track: "bg-orange-200", fillDark: "bg-orange-800", fillLight: "bg-orange-400" },
         elective: { box: "bg-purple-100 border-purple-200", text: "text-purple-700", fill: "bg-purple-600", track: "bg-purple-200" },
-        major2: { box: "bg-[#f3e3d3] border-[#d6b79a]", text: "text-[#8a4b1e]", fill: "bg-[#b98a63]", track: "bg-[#e6cdb4]" },
+        major2: { box: "bg-[#f3e3d3] border-[#d6b79a]", text: "text-[#8a4b1e]", fill: "bg-[#b98a63]", track: "bg-[#e6cdb4]", fillDark: "bg-[#7a4a22]", fillLight: "bg-[#cfa98a]" },
         minor2: { box: "bg-[#dcebe8] border-[#9cbdb8]", text: "text-[#3d6660]", fill: "bg-[#6f9a93]", track: "bg-[#bcd6d1]" },
         minor: { box: "bg-teal-100 border-teal-200", text: "text-teal-700", fill: "bg-teal-600", track: "bg-teal-200" },
       };
@@ -1530,8 +1530,10 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
           const acr = kind === "major" ? majorAcr(item.code) : minorAcr(item.code);
           const label = picks.length > 1 ? `${kind === "major" ? "Maj." : "Minor "}${n + 1}: ${acr}` : `${word}: ${acr}`;
           const lines = kind === "major" ? [`${item.required} required + ${item.elective} electives`, `${st.total} credits`] : [`${st.total} credits`];
-          segs.push({ key: kind + "-" + mi, label, shortLabel: acr, href: item.url, grow: own || st.total, taken: st.transfer + st.suffolk, total: st.total, transfer: st.transfer, suffolk: st.suffolk,
-            theme: n === 1 ? themes[1] : themes[0], tipTitle: `${word}: ${item.name}`, tipLines: [...lines, detail(st.transfer + st.suffolk, st.total, st.transfer), "Click the name to open the catalog page"] });
+          const reqDone = allCourses.filter(c => c.taken && !c.transferred && c.type === "major" && (c.programs || []).includes(key)).reduce((sum, c) => sum + c.credits, 0);
+          const suffolkReq = kind === "major" ? Math.min(st.suffolk, reqDone) : undefined;
+          segs.push({ key: kind + "-" + mi, label, shortLabel: acr, href: item.url, grow: own || st.total, taken: st.transfer + st.suffolk, total: st.total, transfer: st.transfer, suffolk: st.suffolk, suffolkReq,
+            theme: n === 1 ? themes[1] : themes[0], tipTitle: `${word}: ${item.name}`, tipLines: [...lines, detail(st.transfer + st.suffolk, st.total, st.transfer), ...(kind === "major" ? [`${suffolkReq} required + ${st.suffolk - suffolkReq} elective credits completed`] : []), "Click the name to open the catalog page"] });
         });
         programSegments("major", selectedMajors, majors, [reqThemes.major, reqThemes.major2]);
         programSegments("minor", selectedMinors, minors, [reqThemes.minor, reqThemes.minor2]);
@@ -1539,6 +1541,15 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
         return segs;
       })();
 
+      // An empty last year is shown as a small "Add year" button; pressing it adds the next empty year
+      const lastYearNum = yearNums[yearNums.length - 1];
+      const yearIsEmpty = (n) => ["fall", "spring", "summer"].every(k => ((courseData[`year${n}`] || {})[k] || []).length === 0);
+      const addYear = () => setCourseData(prev => {
+        const next = JSON.parse(JSON.stringify(prev));
+        const n = Math.max(...Object.keys(next).map(k => Number(k.replace("year", "")))) + 1;
+        next[`year${n}`] = { fall: [], spring: [], summer: [] };
+        return next;
+      });
       const yearsToShow = activeYear === null
         ? yearNums
         : [activeYear];
@@ -1558,7 +1569,7 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
           queued = false;
           if (Date.now() < navLockUntil.current) return;
           let current = ids[0];
-          ids.forEach(id => { const el = document.getElementById(id); if (el && el.getBoundingClientRect().top <= 170) current = id; });
+          ids.forEach(id => { const el = document.getElementById(id); if (el && el.getBoundingClientRect().top <= 250) current = id; });
           setActiveSection(current);
         };
         const onScroll = () => { if (!queued) { queued = true; setTimeout(update, 40); } };
@@ -1737,7 +1748,7 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
                       aria-current={active ? "location" : undefined}
                       className={`block -ml-px border-l-2 py-1.5 pr-2 text-sm transition-colors ${item.level === 2 ? "pl-7 text-[13px]" : "pl-3 font-medium"} ${active ? "border-amber-500 text-amber-700 bg-amber-50/80 font-semibold" : "border-transparent text-gray-600 hover:text-gray-900 hover:bg-white/70"}`}
                     >
-                      {item.year ? yearLabel(item.year) : item.label}
+                      {item.year ? `AY ${yearLabel(item.year)}-${Number(yearLabel(item.year)) + 1}` : item.label}
                     </a>
                   </li>
                 );
@@ -1756,7 +1767,7 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
 
           <main className="flex-1 min-w-0">
             {/* Overview section: majors, minors, degree progress */}
-            <section id="overview" className="scroll-mt-28 bg-slate-200/70 rounded-xl px-4 pt-2.5 pb-2.5 shadow-sm border border-slate-300 mb-6">
+            <section id="overview" className="scroll-mt-[250px] bg-slate-200/70 rounded-xl px-4 pt-2.5 pb-2.5 shadow-sm border border-slate-300 mb-6">
             <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-2">Overview</h2>
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.106fr)_minmax(0,1fr)_215px] gap-4">
               {/* Major(s) Selector */}
@@ -1823,7 +1834,7 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
             </section>
 
             {/* BSBA Degree Requirements section */}
-            <section id="requirements" className="scroll-mt-28 bg-slate-200/70 rounded-xl p-4 shadow-sm border border-slate-300 mb-6">
+            <section id="requirements" className="sticky top-28 z-40 scroll-mt-28 bg-slate-200 rounded-xl p-4 shadow-md border border-slate-300 mb-6">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">BSBA Degree Requirements <span className="normal-case font-medium text-gray-500 tracking-normal">(min. 124 credits)</span></h2>
                 <div className="flex items-center gap-6 text-[14.4px] text-gray-500">
@@ -1846,7 +1857,7 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
             </section>
 
             {/* Plans section: plan tabs, year filter, year rows */}
-            <section id="plans" className="scroll-mt-28">
+            <section id="plans" className="scroll-mt-[250px]">
             <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-3">Explore Academic Plans</h2>
             {/* Plan tabs: one per major/minor combination */}
             <div className="mb-4">
@@ -1958,14 +1969,29 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
             <SelectContext.Provider value={(rect, id, yearKey, semester) => setMenu({ rect, id, yearKey, semester })}>
             <MoveContext.Provider value={moveCourse}>
             {activeYear === null && (
-              <div id="all-years" className="mb-4 scroll-mt-28">
+              <div id="all-years" className="mb-4 scroll-mt-[250px]">
                 <h3 className="text-xl font-bold text-gray-800 serif">All Years</h3>
                 <p className="text-sm text-gray-500">{allYearsCredits} credits planned across four years</p>
               </div>
             )}
             <div className="space-y-8">
-              {yearsToShow.map(yearNum => (
-                <div key={yearNum} id={`year-${yearNum}`} className="scroll-mt-28">
+              {yearsToShow.map(yearNum => (yearNum === lastYearNum && yearIsEmpty(yearNum) ? (
+                <div key={yearNum} id={`year-${yearNum}`} className="flex justify-end scroll-mt-[250px]">
+                  <button
+                    type="button"
+                    onClick={addYear}
+                    aria-label="Add year"
+                    title="Add an empty year after the last one"
+                    className="w-28 py-3 rounded-2xl border border-dashed border-amber-300 bg-amber-50/60 text-amber-700 shadow-sm flex items-center justify-center gap-2 hover:bg-white hover:border-amber-400 transition-all"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                    <span className="text-sm font-semibold whitespace-nowrap">Add year</span>
+                  </button>
+                </div>
+              ) : (
+                <div key={yearNum} id={`year-${yearNum}`} className="scroll-mt-[250px]">
                 <YearRow
                   yearNum={yearNum}
                   label={yearLabel(yearNum)}
@@ -1980,7 +2006,7 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
                   draggingCourse={draggingCourse}
                 />
                 </div>
-              ))}
+              )))}
             </div>
             </MoveContext.Provider>
             </SelectContext.Provider>

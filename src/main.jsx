@@ -6,7 +6,7 @@ import { HelpModal } from './helpContent.jsx';
 import { BrandBadge, BrandBlock } from './brand.jsx';
 import { RequirementsBar } from './reqBar.jsx';
 import { useHoverTip } from './hoverTip.jsx';
-import { readWorkdayRecord, placeRecord } from './recordImport.js';
+import { readWorkdayRecord, placeRecord, applyTransfers } from './recordImport.js';
 
     const initialCourseData = {
       year1: {
@@ -750,12 +750,6 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
                   className="cc-check" />
                 Completed?
               </label>
-              <label className={`shrink-0 inline-flex items-center gap-1 text-xs select-none ${gray ? 'text-gray-300' : 'text-gray-400 cursor-pointer'}`} title="Tick if you earned the credit at another institution. Transfer credit also counts as completed">
-                <input type="checkbox" checked={!!course.transferred} disabled={gray}
-                  onChange={() => toggleTransferredCard && toggleTransferredCard(yearKey, semester, course.id)}
-                  className="cc-check" />
-                Transferred
-              </label>
             </span>
           </div>
           {/* move up / down: appear at the bottom right on hover, over the empty end of the second row */}
@@ -1185,6 +1179,11 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
       const entIdx = majors.findIndex(m => m.code === "ENT");
       const [tabs, setTabs] = useState(() => [{ id: "base", majors: [entIdx], minors: [], ...buildPlan([entIdx], []) }]);
       const [activeTabId, setActiveTabId] = useState("base");
+      // Transferred courses (not assigned to a semester). countsFor: the requirement card id, or null for a free elective
+      const [transfers, setTransfers] = useState([]);
+      const [showTransfers, setShowTransfers] = useState(false);
+      const [openTransfer, setOpenTransfer] = useState(null);
+      const [newTransfer, setNewTransfer] = useState({ code: "", title: "", credits: "3" });
       // The imported student record (if any) is applied to every plan tab, including tabs opened later
       const [studentRecord, setStudentRecord] = useState(null); // {courses, entryTerm, fileName}
       const [importNotice, setImportNotice] = useState(null);   // {kind: "ok" | "error", lines: [text]}
@@ -1216,7 +1215,9 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
       const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
       const selectedMajors = activeTab.majors;
       const selectedMinors = activeTab.minors;
-      const courseData = activeTab.courseData;
+      const transferAssigned = Object.fromEntries(transfers.filter(t => t.countsFor).map(t => [t.countsFor, t]));
+      const courseData = applyTransfers(activeTab.courseData, transferAssigned);
+      const transferFreeCredits = transfers.filter(t => !t.countsFor).reduce((sum, t) => sum + t.credits, 0);
       const setCourseData = (updater) => setTabs(prev => prev.map(t => t.id === activeTab.id ? { ...t, courseData: updater(t.courseData) } : t));
 
       // Choosing a new combination of majors/minors opens a new plan tab (or switches to the one that already exists)
@@ -1265,7 +1266,7 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
       // Only years with courses are shown (and listed in the menu), plus the blank year the student just added
       const yearHasCourses = (n) => ["fall", "spring", "summer"].some(k => ((courseData[`year${n}`] || {})[k] || []).length > 0);
       const shownYears = yearNums.filter(n => n >= 1 && (yearHasCourses(n) || n === activeTab.blankYear));
-      const navItems = [...NAV_ITEMS.filter(i => !i.year), ...shownYears.map(n => ({ id: `year-${n}`, label: `Year ${n}`, level: 2, year: n }))]; // year headings follow the starting term (e.g. "2026")
+      const navItems = [...NAV_ITEMS.filter(i => !i.year), ...(showTransfers ? [{ id: "transfers", label: "Transferred Credits", level: 2 }] : []), ...shownYears.map(n => ({ id: `year-${n}`, label: `Year ${n}`, level: 2, year: n }))]; // year headings follow the starting term (e.g. "2026")
       const [gradTerm, setGradTerm] = useState(defaultGradTerm(DEFAULT_START_TERM));
       // Picking a starting term resets the expected graduation term to its default (still editable afterwards)
       // Some course lists differ by starting term (see buildPlan), so changing the term rebuilds the plan tabs when it matters
@@ -1290,12 +1291,16 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
       // Import record: reads a Workday progress report (.xlsx). Every plan tab is rebuilt from its template with the record applied.
       const importRecord = async (file) => {
         try {
-          const { courses, warnings } = await readWorkdayRecord(file);
+          const { courses, warnings, transfers: recordTransfers } = await readWorkdayRecord(file);
           if (!courses.length) { setImportNotice({ kind: "error", lines: ["No courses were found in this file."] }); return; }
           const test = placeRecord(buildPlan(selectedMajors, selectedMinors, startTerm).courseData, courses, { entryTerm: startTerm, semesters: PLAN_SEMESTERS, bizOptions: BIZ_AREA_OPTIONS, prereqs: PREREQUISITES });
           if (test.error) { setImportNotice({ kind: "error", lines: [test.error] }); return; }
           const rec = { courses, entryTerm: startTerm, fileName: file.name };
           setStudentRecord(rec);
+          if (recordTransfers.length) {
+            setTransfers(recordTransfers.map(t => ({ ...t, id: `tr-${t.code}`, countsFor: null })));
+            setShowTransfers(true);
+          }
           setTabs(prev => prev.map(t => ({ ...t, ...buildTab(t.majors, t.minors, rec) })));
           const s = test.summary;
           setGradTerm(s.gradTerm);
@@ -1466,7 +1471,7 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
 
       const allCourses = Object.values(courseData).flatMap(year => Object.values(year).flat());
       const prereqIssues = prereqProblems(courseData); // courses shown in red: taken with (or before) a prerequisite
-      const completedCredits = allCourses.filter(c => c.taken).reduce((sum, c) => sum + c.credits, 0);
+      const completedCredits = allCourses.filter(c => c.taken).reduce((sum, c) => sum + c.credits, 0) + transferFreeCredits;
       const totalPlannedCredits = allCourses.reduce((sum, c) => sum + c.credits, 0);
       const progress = Math.round((completedCredits / 124) * 100);
 
@@ -1519,6 +1524,7 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
       const requiredCredits = byKey(() => true);
       const transferredCredits = byKey(c => c.taken && c.transferred);
       const suffolkCredits = byKey(c => c.taken && !c.transferred);
+      suffolkCredits.elective = (suffolkCredits.elective || 0) + transferFreeCredits; // free-elective transfers
       // Credits for one specific major or minor, using the courses tagged to it in this plan
       const programStats = (key) => {
         const mine = allCourses.filter(c => (c.programs || []).includes(key));
@@ -1604,6 +1610,92 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
         </button>
       );
       const showBottomAdd = activeYear === null;
+
+      // ---- Transferred courses ----
+      const addTransfer = () => {
+        const code = newTransfer.code.trim();
+        const credits = Number(newTransfer.credits);
+        if (!code || !(credits > 0)) return;
+        setTransfers(prev => [...prev, { id: `tr-${Date.now()}`, code, title: newTransfer.title.trim() || code, credits, countsFor: null }]);
+        setNewTransfer({ code: "", title: "", credits: "3" });
+      };
+      const assignTransfer = (id, cardId) => {
+        setTransfers(prev => prev.map(t => (t.id === id ? { ...t, countsFor: cardId } : t)));
+        setOpenTransfer(null);
+      };
+      const removeTransfer = (id) => {
+        setTransfers(prev => prev.filter(t => t.id !== id));
+        if (openTransfer === id) setOpenTransfer(null);
+      };
+      const planCards = () => Object.values(activeTab.courseData).flatMap(y => Object.values(y).flat());
+      const cardById = (cardId) => planCards().find(c => c.id === cardId);
+      // "Counts for" choices: the plan's required GenEd, SBS Core and major courses not already completed,
+      // leaving out courses that another transfer already counts for
+      const countsGroupsFor = (id) => [
+        ["GenEd", ["gened"]], ["SBS Core", ["core"]], ["Major", ["major", "majorElective"]],
+      ].map(([label, types]) => ({
+        label,
+        options: planCards()
+          .filter(c => types.includes(c.type) && !c.taken && !transfers.some(t => t.countsFor === c.id && t.id !== id))
+          .map(c => ({ id: c.id, name: c.name, title: c.fullName })),
+      })).filter(g => g.options.length);
+      const transferTotal = transfers.reduce((sum, t) => sum + t.credits, 0);
+      const transfersBlock = (
+        <div id="transfers" className="scroll-mt-[250px]">
+          <div className="flex items-baseline gap-2 mb-4 px-5 py-[8px] rounded-xl bg-gradient-to-r from-amber-100/80 to-orange-100/60 border border-amber-200 shadow-sm">
+            <h2 className="text-xl font-bold text-gray-800">Transferred Credits</h2>
+            <span className="text-gray-500">| {transferTotal} credits</span>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-4 space-y-3">
+            {transfers.length === 0 && <p className="text-sm text-gray-500">No transferred courses yet. Import a record, or add a course below.</p>}
+            {transfers.map(t => {
+              const target = t.countsFor ? cardById(t.countsFor) : null;
+              return (
+                <div key={t.id} className="relative flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50/80 px-3 py-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-gray-800 truncate" title={t.title}>{t.code} <span className="font-normal text-gray-600">{t.title}</span></div>
+                    <div className="text-xs text-gray-500">{t.credits} credits · Counts for: {target ? target.name : "Free elective"}</div>
+                  </div>
+                  <div className="relative shrink-0">
+                    <button type="button" aria-expanded={openTransfer === t.id} onClick={() => setOpenTransfer(openTransfer === t.id ? null : t.id)}
+                      className="px-1.5 py-0 leading-4 rounded-md border border-gray-300 bg-white/80 text-xs font-medium text-gray-600 hover:bg-white hover:text-gray-800">
+                      Counts for
+                    </button>
+                    {openTransfer === t.id && (
+                      <div className="absolute right-0 z-30 mt-1 w-72 max-h-72 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg py-1 text-sm">
+                        <button type="button" onClick={() => assignTransfer(t.id, null)} className="w-full text-left px-3 py-1.5 font-medium text-gray-800 hover:bg-amber-50">Free elective</button>
+                        {countsGroupsFor(t.id).map(g => (
+                          <div key={g.label}>
+                            <div className="px-3 pt-2 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">{g.label}</div>
+                            {g.options.map(o => (
+                              <button key={o.id} type="button" onClick={() => assignTransfer(t.id, o.id)} className="w-full text-left px-3 py-1.5 text-gray-700 hover:bg-amber-50">
+                                <span className="font-medium">{o.name}</span> <span className="text-gray-500">{o.title}</span>
+                              </button>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button type="button" onClick={() => removeTransfer(t.id)} aria-label={`Remove ${t.code}`} className="shrink-0 text-gray-400 hover:text-red-600">×</button>
+                </div>
+              );
+            })}
+            <form className="flex flex-wrap items-end gap-2 pt-2 border-t border-gray-100" onSubmit={(e) => { e.preventDefault(); addTransfer(); }}>
+              <label className="text-xs text-gray-500">Code
+                <input value={newTransfer.code} onChange={(e) => setNewTransfer({ ...newTransfer, code: e.target.value })} placeholder="e.g. ECON-101" className="block mt-0.5 w-28 rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-800" />
+              </label>
+              <label className="text-xs text-gray-500">Title
+                <input value={newTransfer.title} onChange={(e) => setNewTransfer({ ...newTransfer, title: e.target.value })} className="block mt-0.5 w-64 rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-800" />
+              </label>
+              <label className="text-xs text-gray-500">Credits
+                <input type="number" min="1" max="6" value={newTransfer.credits} onChange={(e) => setNewTransfer({ ...newTransfer, credits: e.target.value })} className="block mt-0.5 w-20 rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-800" />
+              </label>
+              <button type="submit" className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700">Add course</button>
+            </form>
+          </div>
+        </div>
+      );
       const yearsToShow = activeYear === null
         ? shownYears
         : [activeYear];
@@ -1963,6 +2055,15 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
                   {yearLabel(year)}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => { setShowTransfers(true); setTimeout(() => { const el = document.getElementById("transfers"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 50); }}
+                aria-label="Add Transferred Credits"
+                title="Add Transferred Credits"
+                className="ml-auto flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-gray-700 bg-white border border-gray-300 shadow-sm hover:bg-gray-50 transition-colors"
+              >
+                Add Transferred Credits
+              </button>
               {/* Import record: a Workday academic progress report (.xlsx) */}
               <input
                 ref={fileInputRef}
@@ -1976,7 +2077,7 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
                 onClick={() => fileInputRef.current && fileInputRef.current.click()}
                 aria-label="Import a Workday academic progress report (.xlsx)"
                 title="Import a Workday academic progress report (.xlsx)"
-                className="ml-auto flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-gray-700 bg-white border border-gray-300 shadow-sm hover:bg-gray-50 transition-colors"
+                className="ml-3 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-gray-700 bg-white border border-gray-300 shadow-sm hover:bg-gray-50 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -2029,6 +2130,7 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
               </div>
             )}
             <div className="space-y-8">
+              {showTransfers && activeYear === null && transfersBlock}
               {yearsToShow.map(yearNum => (
                 <div key={yearNum} id={`year-${yearNum}`} className="scroll-mt-[250px]">
                 <YearRow

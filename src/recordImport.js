@@ -104,7 +104,7 @@ export function parseWorkdayRows(rows) {
   };
   if (col.status < 0 || col.period < 0 || col.credits < 0) throw new Error("The report is missing the Status, Academic Period or Credits column.");
 
-  const groups = new Map(), warnings = [];
+  const groups = new Map(), warnings = [], transfers = new Map();
   rows.slice(headerIdx + 1).forEach(r => {
     const reg = String(r[col.reg] || "").trim();
     if (!reg) return;
@@ -115,6 +115,11 @@ export function parseWorkdayRows(rows) {
     const code = `${dept}-${num}`;
     const inProgress = /\(In Progress\)\s*$/i.test(m[4]);
     const title = m[4].replace(/\s*\(In Progress\)\s*$/i, "").trim();   // full title kept; the screen shortens it
+    // a course with no academic period is a transferred course, not assigned to a semester
+    if (!String(r[col.period] || "").trim()) {
+      if (!transfers.has(key)) transfers.set(key, { code, title, credits: Number(r[col.credits]) || 0 });
+      return;
+    }
     const pm = /^(Fall|Spring)\s+(\d{4})$/i.exec(String(r[col.period] || "").trim());
     if (!pm) { warnings.push(`${code} is in a term other than Fall or Spring and was not imported.`); return; }
     const term = `${pm[1][0].toUpperCase()}${pm[1].slice(1).toLowerCase()} ${pm[2]}`;
@@ -133,7 +138,7 @@ export function parseWorkdayRows(rows) {
   });
 
   const courses = [...groups.values()].map(g => ({ ...g, requirements: [...g.requirements] }));
-  return { courses, warnings };
+  return { courses, warnings, transfers: [...transfers.values()] };
 }
 
 export async function readWorkdayRecord(file) {
@@ -322,4 +327,21 @@ export function placeRecord(plan, courses, { entryTerm, semesters, bizOptions = 
     ? `The remaining courses do not fit the 8-semester program, so the plan runs to ${gradTerm}. Please check the planned graduation semester (Expected Grad.).`
     : null;
   return { plan: out, locks, summary, planAlert };
+}
+
+// The plan with transferred courses assigned to requirement cards (assigned: card id -> transfer). Such a card is shown as
+// completed with the transfer's credits. Cards already completed from the record are left as they are.
+export function applyTransfers(plan, assigned) {
+  const out = {};
+  Object.keys(plan).forEach(y => {
+    out[y] = {};
+    Object.keys(plan[y]).forEach(k => {
+      out[y][k] = plan[y][k].map(c => {
+        const t = assigned[c.id];
+        if (!t || c.taken) return c;
+        return { ...c, taken: true, transferred: true, credits: t.credits, fullName: t.title };
+      });
+    });
+  });
+  return out;
 }

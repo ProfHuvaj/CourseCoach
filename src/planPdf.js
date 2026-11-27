@@ -123,7 +123,8 @@ export function makePlanPdf(plan) {
 
         // semester heading
         font('bold', 7.5); text('#6B7280');
-        doc.text(name + (yr.locked[key] ? '  (locked)' : ''), x, y + 10);
+        doc.text((yr.terms && yr.terms[key]) || name, x, y + 10);
+        if (yr.locked[key]) { font('normal', 6.5); text('#6B7280'); doc.text('(locked)', x + doc.getTextWidth((yr.terms && yr.terms[key]) || name) + 4, y + 10); }
         font('bold', 7.5); text(total > 20 ? '#DC2626' : total > 17 ? '#D97706' : '#6B7280');
         doc.text(`${total} cr`, x + colW, y + 10, { align: 'right' });
 

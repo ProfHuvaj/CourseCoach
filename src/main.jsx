@@ -1005,7 +1005,7 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
       );
     };
 
-    const YearRow = ({ yearNum, label, termName, yearData, yearKey, onDragStart, onDragEnd, onDrop, onDragEnter, dropTarget, draggingCourse }) => {
+    const YearRow = ({ yearNum, label, termName, isBlank, onHideBlank, yearData, yearKey, onDragStart, onDragEnd, onDrop, onDragEnter, dropTarget, draggingCourse }) => {
       const yearCredits = Object.values(yearData).flat().reduce((sum, c) => sum + c.credits, 0);
       const allCourses = Object.values(yearData).flat();
 
@@ -1094,6 +1094,17 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
                 </span>
               </button>
             )}
+          {isBlank && (
+            <button
+              type="button"
+              onClick={onHideBlank}
+              aria-label="Hide this empty year"
+              title="Hide this empty year"
+              className="flex-shrink-0 w-12 rounded-2xl border border-gray-200 bg-gray-50/80 text-gray-500 shadow-sm flex flex-col items-center justify-center gap-3 py-4 hover:bg-white hover:text-amber-700 hover:border-amber-300 transition-all"
+            >
+              <span className="text-sm font-semibold tracking-wide" style={{ writingMode: 'vertical-rl' }}>Hide</span>
+            </button>
+          )}
           </div>
         </div>
       );
@@ -1251,7 +1262,10 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
       const termName = (n, sem) => termNameFor(startTerm, n, sem);
       // Plan years in use (more than four after an overflow); the left menu and filters follow them
       const yearNums = Object.keys(courseData).map(k => Number(k.replace("year", ""))).filter(n => !Number.isNaN(n)).sort((a, b) => a - b);
-      const navItems = [...NAV_ITEMS.filter(i => !i.year), ...yearNums.map(n => ({ id: `year-${n}`, label: `Year ${n}`, level: 2, year: n }))]; // year headings follow the starting term (e.g. "2026")
+      // Only years with courses are shown (and listed in the menu), plus the blank year the student just added
+      const yearHasCourses = (n) => ["fall", "spring", "summer"].some(k => ((courseData[`year${n}`] || {})[k] || []).length > 0);
+      const shownYears = yearNums.filter(n => n >= 1 && (yearHasCourses(n) || n === activeTab.blankYear));
+      const navItems = [...NAV_ITEMS.filter(i => !i.year), ...shownYears.map(n => ({ id: `year-${n}`, label: `Year ${n}`, level: 2, year: n }))]; // year headings follow the starting term (e.g. "2026")
       const [gradTerm, setGradTerm] = useState(defaultGradTerm(DEFAULT_START_TERM));
       // Picking a starting term resets the expected graduation term to its default (still editable afterwards)
       // Some course lists differ by starting term (see buildPlan), so changing the term rebuilds the plan tabs when it matters
@@ -1479,7 +1493,7 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
             totalCredits: totalPlannedCredits, completedCredits, progress,
             notes: activeTab.notice ? activeTab.notice.split("\n") : [],
             url: "https://profhuvaj.github.io/CourseCoach/",
-            years: yearNums.map(n => {
+            years: shownYears.map(n => {
               const y = courseData[`year${n}`];
               return {
                 number: n, label: yearNames[n - 1] || "", yearText: yearLabel(n), terms: { fall: termName(n, "fall"), spring: termName(n, "spring"), summer: termName(n, "summer") },
@@ -1560,32 +1574,38 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
       })();
 
       // An empty last year is shown as a small "Add year" button; pressing it adds the next empty year
-      const lastYearNum = yearNums[yearNums.length - 1];
-      const yearIsEmpty = (n) => ["fall", "spring", "summer"].every(k => ((courseData[`year${n}`] || {})[k] || []).length === 0);
-      const addYear = () => setCourseData(prev => {
-        const next = JSON.parse(JSON.stringify(prev));
-        const n = Math.max(...Object.keys(next).map(k => Number(k.replace("year", "")))) + 1;
+      const addYear = () => setTabs(prev => prev.map(t => {
+        if (t.id !== activeTab.id) return t;
+        const next = JSON.parse(JSON.stringify(t.courseData));
+        // a previous blank year that is still empty is replaced by the new one
+        if (t.blankYear && Object.values(next[`year${t.blankYear}`] || {}).every(list => list.length === 0)) delete next[`year${t.blankYear}`];
+        const n = Math.max(0, ...Object.keys(next).map(k => Number(k.replace("year", "")))) + 1;
         next[`year${n}`] = { fall: [], spring: [], summer: [] };
-        return next;
-      });
+        return { ...t, courseData: next, blankYear: n };
+      }));
+      const hideBlankYear = () => setTabs(prev => prev.map(t => {
+        if (t.id !== activeTab.id || !t.blankYear || yearHasCourses(t.blankYear)) return t;
+        const next = JSON.parse(JSON.stringify(t.courseData));
+        delete next[`year${t.blankYear}`];
+        return { ...t, courseData: next, blankYear: null };
+      }));
       const addYearButton = (
-                  <button
-                    type="button"
-                    onClick={addYear}
-                    aria-label="Add year"
-                    title="Add an empty year after the last one"
-                    className="w-28 py-3 rounded-2xl border border-dashed border-amber-300 bg-amber-50/60 text-amber-700 shadow-sm flex items-center justify-center gap-2 hover:bg-white hover:border-amber-400 transition-all"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M12 5v14M5 12h14" />
-                    </svg>
-                    <span className="text-sm font-semibold whitespace-nowrap">Add year</span>
-                  </button>
+        <button
+          type="button"
+          onClick={addYear}
+          aria-label="Add year"
+          title="Add an empty year after the last one"
+          className="w-28 py-3 rounded-2xl border border-dashed border-amber-300 bg-amber-50/60 text-amber-700 shadow-sm flex items-center justify-center gap-2 hover:bg-white hover:border-amber-400 transition-all"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          <span className="text-sm font-semibold whitespace-nowrap">Add year</span>
+        </button>
       );
-      // The bottom button shows while the last year has courses; an empty last year already shows the button in its place
-      const showBottomAdd = activeYear === null && !(lastYearNum !== undefined && yearIsEmpty(lastYearNum));
+      const showBottomAdd = activeYear === null;
       const yearsToShow = activeYear === null
-        ? yearNums
+        ? shownYears
         : [activeYear];
 
       // Total credits across all four years of the active plan (shown under the "All Years" heading)
@@ -1930,7 +1950,7 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
               >
                 All Years
               </button>
-              {yearNums.map(year => (
+              {shownYears.map(year => (
                 <button
                   key={year}
                   onClick={() => setActiveYear(year)}
@@ -2009,16 +2029,14 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
               </div>
             )}
             <div className="space-y-8">
-              {yearsToShow.map(yearNum => (yearNum === lastYearNum && yearIsEmpty(yearNum) ? (
-                <div key={yearNum} id={`year-${yearNum}`} className="flex justify-end scroll-mt-[250px]">
-                  {addYearButton}
-                </div>
-              ) : (
+              {yearsToShow.map(yearNum => (
                 <div key={yearNum} id={`year-${yearNum}`} className="scroll-mt-[250px]">
                 <YearRow
                   yearNum={yearNum}
                   label={yearLabel(yearNum)}
                   termName={termName}
+                  isBlank={yearNum === activeTab.blankYear && !yearHasCourses(yearNum)}
+                  onHideBlank={hideBlankYear}
                   yearData={courseData[`year${yearNum}`]}
                   yearKey={`year${yearNum}`}
                   onDragStart={handleDragStart}
@@ -2029,7 +2047,7 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
                   draggingCourse={draggingCourse}
                 />
                 </div>
-              )))}
+              ))}
             </div>
             {showBottomAdd && (
               <div className="flex justify-end mt-6">{addYearButton}</div>

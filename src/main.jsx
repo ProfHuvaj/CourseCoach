@@ -1623,12 +1623,18 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
           const lines = kind === "major" ? [`${item.required} required + ${item.elective} electives`, `${st.total} credits`] : [`${st.total} credits`];
           const reqDone = allCourses.filter(c => c.taken && !c.transferred && c.type === "major" && (c.programs || []).includes(key)).reduce((sum, c) => sum + c.credits, 0);
           const suffolkReq = kind === "major" ? Math.min(st.suffolk, reqDone) : undefined;
-          segs.push({ key: kind + "-" + mi, label, shortLabel: acr, href: item.url, grow: own || st.total, taken: st.transfer + st.suffolk, total: st.total, transfer: st.transfer, suffolk: st.suffolk, suffolkReq,
+          segs.push({ key: kind + "-" + mi, progKey: key, label, shortLabel: acr, href: item.url, grow: own || st.total, taken: st.transfer + st.suffolk, total: st.total, transfer: st.transfer, suffolk: st.suffolk, suffolkReq,
             theme: n === 1 ? themes[1] : themes[0], tipTitle: `${word}: ${item.name}`, tipLines: [...lines, detail(st.transfer + st.suffolk, st.total, st.transfer), ...(kind === "major" ? [`${suffolkReq} required + ${st.suffolk - suffolkReq} elective credits completed`] : []), "Click the name to open the catalog page"] });
         });
         programSegments("major", selectedMajors, majors, [reqThemes.major, reqThemes.major2]);
         programSegments("minor", selectedMinors, minors, [reqThemes.minor, reqThemes.minor2]);
         fromKey("elective", "Free Electives", "Free Electives", ["Any approved courses"], reqThemes.elective);
+        // GenEd, SBS Core and major requirements are met by courses: the numbers count courses ("3/6")
+        const countText = (all) => `${all.filter(c => c.taken).length}/${all.length}`;
+        segs.forEach(seg => {
+          if (seg.key === "gened" || seg.key === "core") seg.numText = countText(allCourses.filter(c => c.type === seg.key));
+          else if (seg.progKey && seg.key.startsWith("major-")) seg.numText = countText(allCourses.filter(c => isMajorType(c) && (c.programs || []).includes(seg.progKey)));
+        });
         return segs;
       })();
 

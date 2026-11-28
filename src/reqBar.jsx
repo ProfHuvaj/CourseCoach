@@ -63,6 +63,7 @@ function Segment({ seg, align }) {
   }, [seg.label, seg.shortLabel, seg.taken, seg.total]);
 
   const { theme } = seg;
+  const numText = seg.numText || `${seg.taken}/${seg.total}`;
   const tipPos = align === 'left' ? 'left-0' : align === 'right' ? 'right-0' : 'left-1/2 -translate-x-1/2';
 
   return (
@@ -83,7 +84,7 @@ function Segment({ seg, align }) {
                 : (mode === 'short' ? seg.shortLabel : seg.label)}
             </span>
           )}
-          <span className={`font-bold whitespace-nowrap ${theme.text}`}>{seg.taken}/{seg.total}</span>
+          <span className={`font-bold whitespace-nowrap ${theme.text}`}>{numText}</span>
         </div>
       )}
       <div className={mode === 'none' ? '' : 'mt-1.5'}>
@@ -101,7 +102,7 @@ function Segment({ seg, align }) {
       {/* hidden copies of the text, used only to measure whether it fits */}
       <span ref={labelRef} aria-hidden="true" className="invisible absolute left-0 top-0 whitespace-nowrap text-xs font-medium pointer-events-none">{seg.label}</span>
       {seg.shortLabel && <span ref={shortRef} aria-hidden="true" className="invisible absolute left-0 top-0 whitespace-nowrap text-xs font-medium pointer-events-none">{seg.shortLabel}</span>}
-      <span ref={numRef} aria-hidden="true" className="invisible absolute left-0 top-0 whitespace-nowrap text-xs font-bold pointer-events-none">{seg.taken}/{seg.total}</span>
+      <span ref={numRef} aria-hidden="true" className="invisible absolute left-0 top-0 whitespace-nowrap text-xs font-bold pointer-events-none">{numText}</span>
     </div>
   );
 }

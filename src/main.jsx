@@ -772,10 +772,11 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
     };
 
     // Pop-up menu for a course box's "Select" button: reset, manual entry where allowed, then the courses for the box's category
-    const CourseMenu = ({ menu, course, usedNames, onClose, onReset, onEnter, onChoose }) => {
+    const CourseMenu = ({ menu, course, usedNames, onClose, onReset, onEnter, onChoose, countsGroups = [] }) => {
       const [manual, setManual] = useState(false);
       const [mCode, setMCode] = useState("");
       const [mTitle, setMTitle] = useState("");
+      const [mCounts, setMCounts] = useState("free");
       useEffect(() => { setManual(false); }, [menu]); // each opening starts with the plain menu
       useEffect(() => {
         const esc = (e) => { if (e.key === "Escape") onClose(); };
@@ -795,17 +796,29 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
               <span className="w-4 shrink-0 text-center">{!course.orig ? "\u2713" : ""}</span>Select
             </button>
             {!canEnterManually ? null : !manual ? (
-              <button type="button" role="menuitem" onClick={() => { setMCode(course.manual ? course.name : ""); setMTitle(course.manual ? course.fullName : ""); setManual(true); }}
+              <button type="button" role="menuitem" onClick={() => { setMCode(course.manual ? course.name : ""); setMTitle(course.manual ? course.fullName : ""); setMCounts(course.countsFor || (course.type === "elective" ? "free" : "self")); setManual(true); }}
                 className="w-full flex items-center gap-2 px-3 py-2 text-left font-medium text-gray-800 hover:bg-gray-50">
                 <span className="w-4 shrink-0 text-center">{course.manual ? "\u2713" : ""}</span>Enter manually…
               </button>
             ) : (
               <form className="px-3 py-2 space-y-2 bg-gray-50 border-y border-gray-100"
-                onSubmit={(e) => { e.preventDefault(); if (mCode.trim()) onEnter(mCode.trim(), mTitle.trim()); }}>
+                onSubmit={(e) => { e.preventDefault(); if (mCode.trim()) onEnter(mCode.trim(), mTitle.trim(), mCounts); }}>
                 <input autoFocus value={mCode} onChange={(e) => setMCode(e.target.value)} placeholder="Course code, e.g. ENT-201" aria-label="Course code"
                   className="w-full px-2 py-1.5 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
                 <input value={mTitle} onChange={(e) => setMTitle(e.target.value)} placeholder="Course title" aria-label="Course title"
                   className="w-full px-2 py-1.5 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                <label className="block text-xs text-gray-500">Counts for
+                  <select value={mCounts} onChange={(e) => setMCounts(e.target.value)} aria-label="Counts for"
+                    className="mt-0.5 w-full px-2 py-1.5 rounded-md border border-gray-300 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+                    {course.type !== "elective" && <option value="self">This requirement ({course.name})</option>}
+                    <option value="free">Free elective</option>
+                    {countsGroups.map(g => (
+                      <optgroup key={g.label} label={g.label}>
+                        {g.options.map(o => <option key={o.id} value={o.id}>{o.name} {o.title}</option>)}
+                      </optgroup>
+                    ))}
+                  </select>
+                </label>
                 <div className="flex justify-end gap-2">
                   <button type="button" onClick={() => setManual(false)} className="px-2 py-1 rounded-md text-xs text-gray-600 hover:bg-gray-200">Cancel</button>
                   <button type="submit" disabled={!mCode.trim()} className="px-3 py-1 rounded-md text-xs font-medium bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40">Apply</button>
@@ -1362,12 +1375,48 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
         });
       };
       // "Select": back to the initial format (no chosen course). Completed and Transferred are left as they are.
+      const findCardIn = (plan, id) => { for (const y of Object.values(plan)) for (const l of Object.values(y)) { const c = l.find(x => x.id === id); if (c) return c; } return null; };
+      const removeCardIn = (plan, id) => { Object.values(plan).forEach(y => Object.values(y).forEach(l => { const i = l.findIndex(x => x.id === id); if (i >= 0) l.splice(i, 1); })); };
       const resetCourse = () => {
-        updateCard(c => (c.orig ? { ...c, ...c.orig, orig: undefined, manual: undefined } : { ...c }));
+        setCourseData(prev => {
+          const next = JSON.parse(JSON.stringify(prev));
+          const list = next[menu.yearKey][menu.semester];
+          const i = list.findIndex(c => c.id === menu.id);
+          if (i < 0) return prev;
+          const c = list[i];
+          if (c.orig) {
+            list[i] = { ...c, ...c.orig, orig: undefined, manual: undefined, countsFor: undefined, replaced: undefined };
+            if (c.replaced) list.push(c.replaced); // the requirement box that the course had filled comes back
+          }
+          return next;
+        });
         setMenu(null);
       };
-      const enterCourse = (code, title) => {
-        updateCard(c => ({ ...c, orig: c.orig || { name: c.name, fullName: c.fullName, dual: c.dual }, name: code, fullName: title, manual: true, dual: undefined }));
+      // countsFor: "self" keeps this box's requirement, "free" makes it a free elective, or the id of a requirement box that
+      // the course fills (that box is then taken out of the plan and comes back if the course is reset)
+      const enterCourse = (code, title, countsFor = "self") => {
+        setCourseData(prev => {
+          const next = JSON.parse(JSON.stringify(prev));
+          const list = next[menu.yearKey][menu.semester];
+          const i = list.findIndex(c => c.id === menu.id);
+          if (i < 0) return prev;
+          const c = list[i];
+          const orig = c.orig || { name: c.name, fullName: c.fullName, dual: c.dual, type: c.type, programs: c.programs, rank: c.rank };
+          let patch = { name: code, fullName: title, manual: true, dual: undefined, countsFor };
+          let replaced;
+          if (countsFor === "free") patch = { ...patch, type: "elective", programs: [], rank: undefined };
+          else if (countsFor !== "self") {
+            const target = findCardIn(next, countsFor);
+            if (target) {
+              replaced = target;
+              patch = { ...patch, type: target.type, programs: target.programs, rank: target.rank };
+              removeCardIn(next, countsFor);
+            }
+          }
+          const cur = list.findIndex(x => x.id === menu.id);
+          list[cur] = { ...c, orig, ...patch, replaced };
+          return next;
+        });
         setMenu(null);
       };
       const chooseCourse = (it) => {
@@ -1574,12 +1623,18 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
           const lines = kind === "major" ? [`${item.required} required + ${item.elective} electives`, `${st.total} credits`] : [`${st.total} credits`];
           const reqDone = allCourses.filter(c => c.taken && !c.transferred && c.type === "major" && (c.programs || []).includes(key)).reduce((sum, c) => sum + c.credits, 0);
           const suffolkReq = kind === "major" ? Math.min(st.suffolk, reqDone) : undefined;
-          segs.push({ key: kind + "-" + mi, label, shortLabel: acr, href: item.url, grow: own || st.total, taken: st.transfer + st.suffolk, total: st.total, transfer: st.transfer, suffolk: st.suffolk, suffolkReq,
+          segs.push({ key: kind + "-" + mi, progKey: key, label, shortLabel: acr, href: item.url, grow: own || st.total, taken: st.transfer + st.suffolk, total: st.total, transfer: st.transfer, suffolk: st.suffolk, suffolkReq,
             theme: n === 1 ? themes[1] : themes[0], tipTitle: `${word}: ${item.name}`, tipLines: [...lines, detail(st.transfer + st.suffolk, st.total, st.transfer), ...(kind === "major" ? [`${suffolkReq} required + ${st.suffolk - suffolkReq} elective credits completed`] : []), "Click the name to open the catalog page"] });
         });
         programSegments("major", selectedMajors, majors, [reqThemes.major, reqThemes.major2]);
         programSegments("minor", selectedMinors, minors, [reqThemes.minor, reqThemes.minor2]);
         fromKey("elective", "Free Electives", "Free Electives", ["Any approved courses"], reqThemes.elective);
+        // GenEd, SBS Core and major requirements are met by courses: the numbers count courses ("3/6")
+        const countText = (all) => `${all.filter(c => c.taken).length}/${all.length}`;
+        segs.forEach(seg => {
+          if (seg.key === "gened" || seg.key === "core") seg.numText = countText(allCourses.filter(c => c.type === seg.key));
+          else if (seg.progKey && seg.key.startsWith("major-")) seg.numText = countText(allCourses.filter(c => isMajorType(c) && (c.programs || []).includes(seg.progKey)));
+        });
         return segs;
       })();
 
@@ -1613,6 +1668,31 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
           <span className="text-sm font-semibold whitespace-nowrap">Add year</span>
         </button>
       );
+      const addCourse = () => {
+        const lastYear = shownYears[shownYears.length - 1];
+        if (lastYear === undefined) return;
+        setCourseData(prev => {
+          const next = JSON.parse(JSON.stringify(prev));
+          const yk = "year" + lastYear;
+          const sem = next[yk].summer && next[yk].summer.length > 0 ? "summer" : "spring";
+          next[yk][sem].push({ id: "add-" + Date.now(), name: "Free Elective", fullName: "Any approved course", credits: 3, type: "elective", taken: false, transferred: false });
+          return next;
+        });
+      };
+      const addCourseButton = (
+        <button
+          type="button"
+          onClick={addCourse}
+          aria-label="Add course"
+          title="Add a free elective course at the end of the last term"
+          className="w-28 py-3 rounded-2xl border border-dashed border-teal-300 bg-teal-50/60 text-teal-700 shadow-sm flex items-center justify-center gap-2 hover:bg-white hover:border-teal-400 transition-all"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          <span className="text-sm font-semibold whitespace-nowrap">Add course</span>
+        </button>
+      );
       const showBottomAdd = activeYear === null;
 
       // ---- Transferred courses ----
@@ -1640,7 +1720,7 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
       ].map(([label, types]) => ({
         label,
         options: planCards()
-          .filter(c => types.includes(c.type) && !c.taken && !transfers.some(t => t.countsFor === c.id && t.id !== id))
+          .filter(c => types.includes(c.type) && !c.taken && c.id !== id && !transfers.some(t => t.countsFor === c.id && t.id !== id))
           .map(c => ({ id: c.id, name: c.name, title: c.fullName })),
       })).filter(g => g.options.length);
       const transferTotal = transfers.reduce((sum, t) => sum + t.credits, 0);
@@ -1652,6 +1732,7 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
           </div>
           <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-4 space-y-3">
             {transfers.length === 0 && <p className="text-sm text-gray-500">No transferred courses yet. Import a record, or add a course below.</p>}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {transfers.map(t => {
               const target = t.countsFor ? cardById(t.countsFor) : null;
               return (
@@ -1685,6 +1766,7 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
                 </div>
               );
             })}
+            </div>
             <form className="flex flex-wrap items-end gap-2 pt-2 border-t border-gray-100" onSubmit={(e) => { e.preventDefault(); addTransfer(); }}>
               <label className="text-xs text-gray-500">Code
                 <input value={newTransfer.code} onChange={(e) => setNewTransfer({ ...newTransfer, code: e.target.value })} placeholder="e.g. ECON-101" className="block mt-0.5 w-28 rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-800" />
@@ -2156,14 +2238,14 @@ const semName = (yearKey, sem, start) => termNameFor(start, Number(yearKey.repla
               ))}
             </div>
             {showBottomAdd && (
-              <div className="flex justify-end mt-6">{addYearButton}</div>
+              <div className="flex justify-end gap-3 mt-6">{addYearButton}{addCourseButton}</div>
             )}
             </MoveContext.Provider>
             </SelectContext.Provider>
             </PrereqContext.Provider>
             </TransferredContext.Provider>
             </CompletedContext.Provider>
-            <CourseMenu menu={menu} course={menuCourse} usedNames={usedNames} onClose={() => setMenu(null)} onEnter={enterCourse} onReset={resetCourse} onChoose={chooseCourse} />
+            <CourseMenu menu={menu} countsGroups={menu ? countsGroupsFor(menu.id) : []} course={menuCourse} usedNames={usedNames} onClose={() => setMenu(null)} onEnter={enterCourse} onReset={resetCourse} onChoose={chooseCourse} />
             </LockContext.Provider>
             </section>
           </main>

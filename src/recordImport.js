@@ -16,6 +16,8 @@ const REQUIREMENT_SLOT = {
   "Entrepreneurship Major Elective Courses": (c) => c.type === "majorElective" && (c.programs || []).includes("M:ENT"),
 };
 
+// Courses that never count toward a General Education requirement, even when the Workday requirement row lists them
+const NOT_GENED = new Set(["ENG135"]);
 const keyOf = (text) => String(text).replace(/[^A-Za-z0-9]/g, "").toUpperCase();
 
 // ---------- reading the .xlsx file ----------
@@ -231,7 +233,7 @@ export function placeRecord(plan, courses, { entryTerm, semesters, bizOptions = 
     let hit = take(c => keyOf(c.name) === course.key);
     if (!hit && bizOptions.includes(course.code)) hit = take(c => c.name === "Business Area" || bizOptions.includes(c.name));
     if (!hit) {
-      const slot = course.requirements.map(r => REQUIREMENT_SLOT[r]).find(Boolean);
+      const slot = NOT_GENED.has(course.key) ? undefined : course.requirements.map(r => REQUIREMENT_SLOT[r]).find(Boolean);
       if (slot) hit = take(slot);
     }
     let card;
